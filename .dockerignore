@@ -1,0 +1,6 @@
+.docker/env
+.dockerignore
+.git
+.gitignore
+.python-version
+README.md
