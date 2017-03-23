@@ -1,4 +1,4 @@
-# courtbot
+# courtbot [![Travis](https://img.shields.io/travis/rlucioni/courtbot.svg?style=flat-square)](https://travis-ci.org/rlucioni/courtbot) [![Docker Automated build](https://img.shields.io/docker/automated/rlucioni/courtbot.svg?style=flat-square)](https://hub.docker.com/r/rlucioni/courtbot/)
 
 Bot for checking squash court availability.
 
