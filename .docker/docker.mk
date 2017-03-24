@@ -12,9 +12,6 @@ prune: ## Delete stopped containers and dangling images
 pull: ## Update the rlucioni/courtbot image
 	docker pull rlucioni/courtbot
 
-quality: ## Run quality checks
-	docker run rlucioni/courtbot flake8
-
 run: prune ## Start a container derived from the rlucioni/courtbot image
 	docker run --detach --name courtbot --env-file .docker/env --restart on-failure rlucioni/courtbot
 
