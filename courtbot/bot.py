@@ -11,14 +11,16 @@ from courtbot import settings
 logger = logging.getLogger(__name__)
 
 
-class Slack:
+class Bot:
     """
-    Utility class for reading and writing to Slack.
+    Bot class for reading from and writing to Slack.
 
     Uses Slack's RTM API. For more about the RTM API, see documentation at
     http://slackapi.github.io/python-slackclient/real_time_messaging.html.
     """
     def __init__(self):
+        logger.info('Initializing courtbot.')
+
         self.client = SlackClient(settings.SLACK_TOKEN)
 
         # Find and cache the bot's user ID. The ID is used to identify messages
@@ -29,6 +31,12 @@ class Slack:
                 self.bot_id = user['id']
 
                 logger.info(f'Bot ID is [{self.bot_id}].')
+
+        self.actions = {
+            'help': ['help'],
+            'show': ['show', 'availab', 'look'],
+            'book': ['book', 'reserve'],
+        }
 
     def connect(self):
         """
@@ -42,7 +50,10 @@ class Slack:
             while True:
                 events = self.read()
 
-                self.parse(events)
+                try:
+                    self.parse(events)
+                except:
+                    logger.exception('Event parsing failed.')
 
                 sleep(settings.SLACK_RTM_READ_DELAY)
         else:
@@ -78,11 +89,48 @@ class Slack:
         for message in messages:
             logger.info(f'Parsing message [{message}].')
 
-            if self.bot_id in message['text']:
+            text = message['text']
+            if self.bot_id in text:
+                text = text.lower()
                 timestamp = message['ts']
-                logger.info(f'Message at [{timestamp}] contains bot ID.')
 
-                self.post(message['channel'], 'I see your message!')
+                logger.info(f'Message at [{timestamp}] contains bot ID [{self.bot_id}].')
+
+                for action, triggers in self.actions.items():
+                    if any(trigger.lower() in text for trigger in triggers):
+                        logger.info(f'Triggering the [{action}] action.')
+
+                        getattr(self, action)(message)
+                        break
+                else:
+                    logger.info(f'Message at [{timestamp}] does not include any triggers.')
+
+    def help(self, message):
+        """
+        Post a message explaining how to use the bot.
+
+        Arguments:
+            message (dict): Message mentioning the bot which includes a 'help' trigger.
+        """
+        self.post(message['channel'], 'This is a help message.')
+
+    def show(self, message):
+        """
+        Post a message showing court availability.
+
+        Arguments:
+            message (dict): Message mentioning the bot which includes a 'show' trigger.
+        """
+        self.post(message['channel'], 'This is a court availability message.')
+
+    def book(self, message):
+        """
+        Book a court.
+
+        Arguments:
+            message (dict): Message mentioning the bot which includes a 'book' trigger.
+        """
+        self.post(message['channel'], 'This is a booking message.')
 
     def post(self, channel, text):
         """
