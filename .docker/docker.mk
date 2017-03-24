@@ -1,19 +1,10 @@
-.PHONY: create image kill logs provision prune pull push quality run shell stop
-
-create: ## Create a Droplet for hosting courtbot
-	docker-machine create --driver digitalocean --digitalocean-access-token $$(cat ~/.digitalocean-access-token) courtbot
+.PHONY: image logs prune pull quality run shell stop
 
 image: ## Build an rlucioni/courtbot image
 	docker build --tag rlucioni/courtbot:latest .
 
-kill: ## Stop and remove the Droplet hosting courtbot.
-	docker-machine stop courtbot && docker-machine rm courtbot
-
 logs: ## Tail a running container's logs
 	docker logs --follow courtbot
-
-provision: ## Reprovision an existing courtbot machine
-	docker-machine provision courtbot
 
 prune: ## Delete stopped containers and dangling images
 	docker system prune --force
