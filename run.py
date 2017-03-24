@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 import logging
 
+from courtbot.utils import Slack
+
 
 logger = logging.getLogger(__name__)
 
@@ -14,5 +16,4 @@ if __name__ == '__main__':
 
     logger.info('Bot initialized.')
 
-    while True:
-        pass
+    Slack().connect()
