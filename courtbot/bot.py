@@ -1,11 +1,13 @@
 from collections import defaultdict
 import logging
+import re
 from time import sleep
 
 from slackclient import SlackClient
 from slackclient._server import SlackConnectionError
 
-from courtbot import settings
+from courtbot import constants, settings
+from courtbot.spider import Spider
 
 
 logger = logging.getLogger(__name__)
@@ -13,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 class Bot:
     """
-    Bot class for reading from and writing to Slack.
+    Bot capable of reading from and writing to Slack.
 
     Uses Slack's RTM API. For more about the RTM API, see documentation at
     http://slackapi.github.io/python-slackclient/real_time_messaging.html.
@@ -23,20 +25,37 @@ class Bot:
 
         self.client = SlackClient(settings.SLACK_TOKEN)
 
-        # Find and cache the bot's user ID. The ID is used to identify messages
-        # which mention the bot.
-        users = self.client.api_call('users.list')['members']
-        for user in users:
-            if user['name'] == settings.SLACK_USERNAME:
-                self.bot_id = user['id']
-
-                logger.info(f'Bot ID is [{self.bot_id}].')
+        self.users = {}
+        self.id = None
+        self.cache_users()
 
         self.actions = {
+            'health': ['alive', 'health'],
             'help': ['help'],
-            'show': ['show', 'availab', 'look'],
+            'show': ['available', 'check', 'look', 'show'],
             'book': ['book', 'reserve'],
         }
+
+    def cache_users(self):
+        """
+        Cache team user info.
+
+        Finds and caches user IDs and handles belonging to everyone on the Slack
+        team, including the bot. The bot ID is used to identify messages which
+        mention the bot. Other IDs are used to look up handles so the bot can
+        mention other users in its messages.
+        """
+        users = self.client.api_call('users.list')['members']
+        for user in users:
+            id = user['id']
+            handle = user['name']
+
+            self.users[id] = handle
+
+            if handle == settings.SLACK_HANDLE:
+                self.id = id
+
+                logger.info(f'Bot ID is [{self.id}].')
 
     def connect(self):
         """
@@ -64,6 +83,8 @@ class Bot:
         """
         Read from the RTM websocket stream.
 
+        See https://api.slack.com/rtm#events.
+
         Returns:
             defaultdict: Lists of events, keyed by type. Empty if no new events
                 were found when reading the stream.
@@ -90,11 +111,11 @@ class Bot:
             logger.info(f'Parsing message [{message}].')
 
             text = message['text']
-            if self.bot_id in text:
+            if self.id in text:
                 text = text.lower()
                 timestamp = message['ts']
 
-                logger.info(f'Message at [{timestamp}] contains bot ID [{self.bot_id}].')
+                logger.info(f'Message at [{timestamp}] contains bot ID [{self.id}].')
 
                 for action, triggers in self.actions.items():
                     if any(trigger.lower() in text for trigger in triggers):
@@ -104,6 +125,16 @@ class Bot:
                         break
                 else:
                     logger.info(f'Message at [{timestamp}] does not include any triggers.')
+
+    def health(self, message):
+        """
+        Post a health message.
+
+        Arguments:
+            message (dict): Message mentioning the bot which includes a 'health' trigger.
+        """
+        user = self.users[message['user']]
+        self.post(message['channel'], f'@{user} I\'m here!')
 
     def help(self, message):
         """
@@ -121,7 +152,61 @@ class Bot:
         Arguments:
             message (dict): Message mentioning the bot which includes a 'show' trigger.
         """
-        self.post(message['channel'], 'This is a court availability message.')
+        user = self.users[message['user']]
+        text = message['text'].lower()
+
+        tomorrow = 'tomorrow' in text
+        when = 'tomorrow' if tomorrow else 'today'
+
+        match = re.search(r'#(?P<number>\d)', text)
+        number = int(match.group('number')) if match else None
+
+        if number and not constants.COURTS.get(number):
+            self.post(message['channel'], f'@{user} #{number} isn\'t a Z-Center court number.')
+
+        self.post(message['channel'], f'@{user} hold on, let me take a look.')
+        try:
+            spider = Spider()
+            spider.login()
+            data = spider.availability(number=number, tomorrow=tomorrow)
+        except:
+            logger.error('Failed to retrieve court availability data.')
+
+            self.post(message['channel'], f'@{user} something went wrong. Sorry!')
+
+        messages = []
+        for court, hours in data.items():
+            if hours:
+                formatted_hours = [constants.HOURS[hour] for hour in hours]
+
+                if len(hours) == 1:
+                    times = formatted_hours[0]
+                if len(hours) == 2:
+                    times = ' and '.join(formatted_hours)
+                else:
+                    all_but_last = ', '.join(formatted_hours[:-1])
+                    last = formatted_hours[-1]
+                    times = ', and '.join([all_but_last, last])
+
+                messages.append(f'#{court} is available {when} at {times}.')
+
+        if number:
+            if messages:
+                self.post(message['channel'], f'@{user} {messages[0]}')
+            else:
+                self.post(message['channel'], f'@{user} #{number} is not available {when}.')
+        else:
+            if messages:
+                availability_message = '\n'.join(messages)
+                self.post(
+                    message['channel'],
+                    f'@{user} here\'s how the courts look:\n\n{availability_message}'
+                )
+            else:
+                self.post(
+                    message['channel'],
+                    f'@{user} there are no courts available {when}.'
+                )
 
     def book(self, message):
         """
@@ -130,11 +215,13 @@ class Bot:
         Arguments:
             message (dict): Message mentioning the bot which includes a 'book' trigger.
         """
-        self.post(message['channel'], 'This is a booking message.')
+        self.post(message['channel'], 'I can\'t book courts yet.')
 
     def post(self, channel, text):
         """
         Post text to the given channel.
+
+        See https://api.slack.com/methods/chat.postMessage.
 
         Arguments:
             channel (str): The channel to which to post.
@@ -144,5 +231,6 @@ class Bot:
             'chat.postMessage',
             as_user=True,
             channel=channel,
-            text=text
+            link_names=True,
+            text=text,
         )
