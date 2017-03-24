@@ -4,7 +4,7 @@ create: ## Create a Droplet for hosting courtbot
 	docker-machine create --driver digitalocean --digitalocean-access-token $$(cat ~/.digitalocean-access-token) courtbot
 
 image: ## Build an rlucioni/courtbot image
-	docker build -f .docker/Dockerfile -t rlucioni/courtbot:latest .
+	docker build -t rlucioni/courtbot:latest .
 
 kill: ## Stop and remove the Droplet hosting courtbot.
 	docker-machine stop courtbot && docker-machine rm courtbot
