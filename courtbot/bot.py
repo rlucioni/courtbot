@@ -127,8 +127,8 @@ class Bot:
         for message in messages:
             logger.info(f'Parsing message [{message}].')
 
-            text = message['text']
-            if self.id in text:
+            text = message.get('text')
+            if text and self.id in text:
                 text = text.lower()
                 timestamp = message['ts']
 
@@ -155,7 +155,7 @@ class Bot:
 
     def help(self, message):
         """
-        Post a message explaining how to use the bot.
+        Post a message explaining how to use courtbot.
 
         Arguments:
             message (dict): Message mentioning the bot which includes a 'help' trigger.
@@ -173,8 +173,12 @@ class Bot:
                 f'*{action}*: {docstring[0]} Trigger by including {words} in your message.'
             )
 
-        help_message = '\n'.join(lines)
-        self.post(message['channel'],  f'@{user} here\'s what I can do.\n\n{help_message}')
+        help_message = '\n\n'.join(
+            [f'@{user} here\'s what I can do.'] +
+            lines +
+            [f'To see how I work or contribute to development, check out {settings.GITHUB_LINK}.']
+        )
+        self.post(message['channel'], help_message)
 
     def show(self, message):
         """
@@ -193,14 +197,13 @@ class Bot:
         number = int(match.group('number')) if match else None
 
         if number and not constants.COURTS.get(number):
-            self.post(message['channel'], f'@{user} #{number} isn\'t a Z-Center court number.')
+            self.post(message['channel'], f'@{user} *#{number}* isn\'t a Z-Center court number.')
+            return
 
-        self.post(message['channel'], f'@{user} hold on, let me take a look.')
         try:
             data = self.spider.availability(number=number, tomorrow=tomorrow)
         except:
             logger.error('Failed to retrieve court availability data.')
-
             self.post(message['channel'], f'@{user} something went wrong. Sorry!')
 
         lines = []
@@ -209,25 +212,21 @@ class Bot:
                 formatted_hours = [constants.HOURS[hour] for hour in hours]
                 times = conversational_join(formatted_hours)
 
-                lines.append(f'#{court} is available {when} at {times}.')
+                lines.append(f'*#{court}* is available {when} at {times}.')
 
         if number:
             if lines:
                 self.post(message['channel'], f'@{user} {lines[0]}')
             else:
-                self.post(message['channel'], f'@{user} #{number} is not available {when}.')
+                self.post(message['channel'], f'@{user} *#{number}* is not available {when}.')
         else:
             if lines:
-                availability_message = '\n'.join(lines)
-                self.post(
-                    message['channel'],
-                    f'@{user} here\'s how the courts look:\n\n{availability_message}'
+                availability_message = '\n\n'.join(
+                    [f'@{user} here\'s how the courts look.'] + lines
                 )
+                self.post(message['channel'], availability_message)
             else:
-                self.post(
-                    message['channel'],
-                    f'@{user} there are no courts available {when}.'
-                )
+                self.post(message['channel'], f'@{user} there are no courts available {when}.')
 
     def book(self, message):
         """

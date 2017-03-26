@@ -6,6 +6,8 @@ CACHE_TTL = int(os.environ.get('CACHE_TTL', 3600))
 DAPER_USERNAME = os.environ.get('DAPER_USERNAME')
 DAPER_PASSWORD = os.environ.get('DAPER_PASSWORD')
 
+GITHUB_LINK = os.environ.get('GITHUB_LINK', 'https://github.com/rlucioni/courtbot')
+
 REQUEST_HEADERS = {
     'Pragma': 'no-cache',
     'Origin': 'https://east-a-60ols.csi-cloudapp.net',
