@@ -8,6 +8,7 @@ from slackclient._server import SlackConnectionError
 
 from courtbot import constants, settings
 from courtbot.spider import Spider
+from courtbot.utils import conversational_join
 
 
 logger = logging.getLogger(__name__)
@@ -31,10 +32,25 @@ class Bot:
         self.cache_users()
 
         self.actions = {
-            'health': ['alive', 'health'],
-            'help': ['help'],
-            'show': ['available', 'check', 'look', 'show'],
-            'book': ['book', 'reserve'],
+            'health': [
+                'alive',
+                'health',
+            ],
+            'help': [
+                'explain',
+                'help',
+            ],
+            'show': [
+                'available',
+                'check',
+                'look',
+                'show',
+            ],
+            'book': [
+                'book',
+                'grab',
+                'reserve',
+            ],
         }
 
     def cache_users(self):
@@ -144,11 +160,25 @@ class Bot:
         Arguments:
             message (dict): Message mentioning the bot which includes a 'help' trigger.
         """
-        self.post(message['channel'], 'This is a help message.')
+        user = self.users[message['user']]
+
+        lines = []
+        for action, triggers in self.actions.items():
+            docstring = [line.strip() for line in getattr(self, action).__doc__.split('\n') if line]
+
+            triggers = [f'`{trigger}`' for trigger in triggers]
+            words = conversational_join(triggers, conjunction='or')
+
+            lines.append(
+                f'*{action}*: {docstring[0]} Trigger by including {words} in your message.'
+            )
+
+        help_message = '\n'.join(lines)
+        self.post(message['channel'],  f'@{user} here\'s what I can do.\n\n{help_message}')
 
     def show(self, message):
         """
-        Post a message showing court availability.
+        Post a message showing court availability. Include `tomorrow` in your message to look tomorrow.
 
         Arguments:
             message (dict): Message mentioning the bot which includes a 'show' trigger.
@@ -173,30 +203,22 @@ class Bot:
 
             self.post(message['channel'], f'@{user} something went wrong. Sorry!')
 
-        messages = []
+        lines = []
         for court, hours in data.items():
             if hours:
                 formatted_hours = [constants.HOURS[hour] for hour in hours]
+                times = conversational_join(formatted_hours)
 
-                if len(hours) == 1:
-                    times = formatted_hours[0]
-                if len(hours) == 2:
-                    times = ' and '.join(formatted_hours)
-                else:
-                    all_but_last = ', '.join(formatted_hours[:-1])
-                    last = formatted_hours[-1]
-                    times = ', and '.join([all_but_last, last])
-
-                messages.append(f'#{court} is available {when} at {times}.')
+                lines.append(f'#{court} is available {when} at {times}.')
 
         if number:
-            if messages:
-                self.post(message['channel'], f'@{user} {messages[0]}')
+            if lines:
+                self.post(message['channel'], f'@{user} {lines[0]}')
             else:
                 self.post(message['channel'], f'@{user} #{number} is not available {when}.')
         else:
-            if messages:
-                availability_message = '\n'.join(messages)
+            if lines:
+                availability_message = '\n'.join(lines)
                 self.post(
                     message['channel'],
                     f'@{user} here\'s how the courts look:\n\n{availability_message}'
@@ -214,7 +236,8 @@ class Bot:
         Arguments:
             message (dict): Message mentioning the bot which includes a 'book' trigger.
         """
-        self.post(message['channel'], 'I can\'t book courts yet.')
+        user = self.users[message['user']]
+        self.post(message['channel'], f'@{user} sorry, I can\'t book courts yet.')
 
     def post(self, channel, text):
         """
