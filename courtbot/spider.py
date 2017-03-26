@@ -1,8 +1,10 @@
 import datetime
 import json
 import logging
+import operator
 from time import sleep
 
+from cachetools import cachedmethod, TTLCache
 import dryscrape
 import requests
 
@@ -20,16 +22,24 @@ class Spider:
     def __init__(self):
         logger.info('Initializing spider.')
 
-        self.base_url = 'https://east-a-60ols.csi-cloudapp.net'
-
         dryscrape.start_xvfb()
+        self.base_url = 'https://east-a-60ols.csi-cloudapp.net'
         self.session = dryscrape.Session(base_url=self.base_url)
 
         # No need to load images.
         self.session.set_attribute('auto_load_images', False)
 
+        # LRU performs best when maxsize is a power of two.
+        maxsize = 2 ** 5
+        self.cache = TTLCache(maxsize, settings.CACHE_TTL)
+
+    @cachedmethod(operator.attrgetter('cache'))
     def login(self):
-        """Log in to MIT Recreation."""
+        """Log in to MIT Recreation.
+
+        Returns:
+            dict: Cookies set after logging in, ready for use with requests.
+        """
         logger.info('Attempting to log in to MIT Recreation.')
 
         login_path = '/MIT/Login.aspx'
@@ -48,15 +58,18 @@ class Spider:
         # API are present.
         sleep(1)
 
-        # TODO: Cache cookies with https://pypi.python.org/pypi/cachetools to avoid
-        # unnecessary logins.
         logger.info('Logged in to MIT Recreation.')
+
+        # Cookies returned by dryscrape are strings that look like the following:
+        # 'AspxAutoDetectCookieSupport=1; domain=east-a-60ols.csi-cloudapp.net; path=/'
+        cookies = [cookie.split(';')[0].split('=') for cookie in self.session.cookies()]
+        cookies = {name: value for name, value in cookies}
+
+        return cookies
 
     def availability(self, number=None, tomorrow=False):
         """
         Retrieve court availability data.
-
-        You must log in to MIT Recreation before calling this method.
 
         Data comes from the same API used by the scheduling application. Courts
         can only be booked by the hour, but the API returns minute-by-minute
@@ -78,20 +91,12 @@ class Spider:
         Returns:
             dict: Lists indicating court availability, keyed by court number.
         """
+        cookies = self.login()
+
         resource_ids = [constants.COURTS[number]] if number else constants.RESOURCES.keys()
 
-        day = datetime.datetime.now()
-        if tomorrow:
-            day += datetime.timedelta(days=1)
-
+        day = datetime.datetime.now() + datetime.timedelta(days=1 if tomorrow else 0)
         date_string = day.strftime('%m/%d/%Y')
-
-        url = self.base_url + '/MIT/Library/OlsService.asmx/GetSchedulerResourceAvailability'
-
-        # Cookies returned by dryscrape are strings that look like the following:
-        # 'AspxAutoDetectCookieSupport=1; domain=east-a-60ols.csi-cloudapp.net; path=/'
-        cookies = [cookie.split(';')[0].split('=') for cookie in self.session.cookies()]
-        cookies = {name: value for name, value in cookies}
 
         data = {
             'siteId': '1261',
@@ -102,6 +107,7 @@ class Spider:
         data = json.dumps(data, separators=(',', ':'))
 
         logger.info(f'Requesting court availability data for {date_string}.')
+        url = self.base_url + '/MIT/Library/OlsService.asmx/GetSchedulerResourceAvailability'
         response = requests.post(url, headers=settings.REQUEST_HEADERS, cookies=cookies, data=data)
 
         if response.status_code != 200:

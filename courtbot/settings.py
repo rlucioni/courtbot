@@ -1,6 +1,8 @@
 import os
 
 
+CACHE_TTL = int(os.environ.get('CACHE_TTL', 3600))
+
 DAPER_USERNAME = os.environ.get('DAPER_USERNAME')
 DAPER_PASSWORD = os.environ.get('DAPER_PASSWORD')
 

@@ -24,6 +24,7 @@ class Bot:
         logger.info('Initializing courtbot.')
 
         self.client = SlackClient(settings.SLACK_TOKEN)
+        self.spider = Spider()
 
         self.users = {}
         self.id = None
@@ -166,9 +167,7 @@ class Bot:
 
         self.post(message['channel'], f'@{user} hold on, let me take a look.')
         try:
-            spider = Spider()
-            spider.login()
-            data = spider.availability(number=number, tomorrow=tomorrow)
+            data = self.spider.availability(number=number, tomorrow=tomorrow)
         except:
             logger.error('Failed to retrieve court availability data.')
 

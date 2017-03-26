@@ -9,10 +9,12 @@ RUN apt-get update && apt-get install -y \
     qt5-default \
     xvfb
 
-COPY . /src
+# Copying the requirements.txt file separately allows caching of packages installed via pip.
+COPY requirements.txt /src/
 WORKDIR /src
 
-# TODO: Find out if pip installs can be cached to speed up image build.
-RUN make requirements
+RUN pip install -r requirements.txt
+
+COPY . /src
 
 CMD ["./run.py"]
