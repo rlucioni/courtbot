@@ -14,5 +14,7 @@ HOURS = {
     hour: datetime.datetime.now().replace(hour=hour).strftime('%-I %p') for hour in range(24)
 }
 
+HOUR_STRINGS = {hour_string: hour for hour, hour_string in HOURS.items()}
+
 # Minutes elapsed at the top of each hour.
 TOP_OF_HOUR = {hour * 60 for hour in HOURS.keys()}

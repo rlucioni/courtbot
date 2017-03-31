@@ -7,8 +7,9 @@ from slackclient import SlackClient
 from slackclient._server import SlackConnectionError
 
 from courtbot import constants, settings
+from courtbot.exceptions import AvailabilityError
 from courtbot.spider import Spider
-from courtbot.utils import conversational_join
+from courtbot.utils import conversational_join, slash_separated_date
 
 
 logger = logging.getLogger(__name__)
@@ -203,8 +204,13 @@ class Bot:
         try:
             data = self.spider.availability(number=number, tomorrow=tomorrow)
         except:
-            logger.error('Failed to retrieve court availability data.')
+            # flake8 thinks this variable is never used; it doesn't see it being
+            # used in the f-string.
+            date_string = slash_separated_date(tomorrow)  # noqa: F841
+            logger.exception('Failed to retrieve court availability data for {date_string}.')
+
             self.post(message['channel'], f'@{user} something went wrong. Sorry!')
+            return
 
         lines = []
         for court, hours in data.items():
@@ -230,13 +236,61 @@ class Bot:
 
     def book(self, message):
         """
-        Book a court.
+        Book a court. Include a court number (e.g., #4) and a time to book (e.g., 8 PM) in your message.
 
         Arguments:
             message (dict): Message mentioning the bot which includes a 'book' trigger.
         """
         user = self.users[message['user']]
-        self.post(message['channel'], f'@{user} sorry, I can\'t book courts yet.')
+        text = message['text'].lower()
+
+        tomorrow = 'tomorrow' in text
+        when = 'tomorrow' if tomorrow else 'today'
+
+        match = re.search(r'#(?P<number>\d)', text)
+        number = int(match.group('number')) if match else None
+
+        if not number:
+            self.post(
+                message['channel'],
+                f'@{user} please give me a Z-Center court number to book (e.g., #1).'
+            )
+            return
+
+        if not constants.COURTS.get(number):
+            self.post(message['channel'], f'@{user} *#{number}* isn\'t a valid Z-Center court number.')
+            return
+
+        match = re.search(r'(?P<hour_string>\d+ (AM|PM))', text, re.IGNORECASE)
+        hour_string = match.group('hour_string') if match else None
+
+        if not hour_string:
+            self.post(message['channel'], f'@{user} please give me a time to book (e.g., 8 PM).')
+            return
+
+        hour_string = hour_string.upper()
+        hour = constants.HOUR_STRINGS.get(hour_string)
+        if not hour:
+            self.post(message['channel'], f'@{user} {hour_string} isn\'t a valid booking time.')
+            return
+
+        date_string = slash_separated_date(tomorrow)
+
+        try:
+            self.spider.book(number, hour, tomorrow=tomorrow)
+        except AvailabilityError:
+            logger.error(f'Court #{number} is not available at {hour_string} on {date_string}.')
+            self.post(message['channel'], f'@{user} court #{number} isn\'t available at {hour_string} {when}.')
+            return
+        except:
+            logger.exception(f'Failed to book court #{number} at {hour_string} on {date_string}.')
+            self.post(message['channel'], f'@{user} something went wrong. Sorry!')
+            return
+
+        self.post(
+            message['channel'],
+            f'@{user} all set! I\'ve booked #{number} at {hour_string} {when}.'
+        )
 
     def post(self, channel, text):
         """

@@ -1,4 +1,3 @@
-import datetime
 import json
 import logging
 import operator
@@ -9,7 +8,8 @@ import dryscrape
 import requests
 
 from courtbot import constants, settings
-from courtbot.exceptions import AvailabilityError
+from courtbot.exceptions import AvailabilityError, BookingError
+from courtbot.utils import hourly, slash_separated_date
 
 
 logger = logging.getLogger(__name__)
@@ -40,7 +40,7 @@ class Spider:
         Returns:
             dict: Cookies set after logging in, ready for use with requests.
         """
-        logger.info('Attempting to log in to MIT Recreation.')
+        logger.info('Logging in to MIT Recreation.')
 
         login_path = '/MIT/Login.aspx'
         self.session.visit(login_path)
@@ -57,8 +57,6 @@ class Spider:
         # This pause ensures that cookies required for accessing the scheduling
         # API are present.
         sleep(1)
-
-        logger.info('Logged in to MIT Recreation.')
 
         # Cookies returned by dryscrape are strings that look like the following:
         # 'AspxAutoDetectCookieSupport=1; domain=east-a-60ols.csi-cloudapp.net; path=/'
@@ -91,132 +89,98 @@ class Spider:
         Returns:
             dict: Lists indicating court availability, keyed by court number.
         """
+        date_string = slash_separated_date(tomorrow)
+        logger.info(f'Requesting court availability data for {date_string}.')
+
         cookies = self.login()
 
         resource_ids = [constants.COURTS[number]] if number else constants.RESOURCES.keys()
-
-        day = datetime.datetime.now() + datetime.timedelta(days=1 if tomorrow else 0)
-        date_string = day.strftime('%m/%d/%Y')
-
         data = {
             'siteId': '1261',
             'resourceIds': [str(resource_id) for resource_id in resource_ids],
-            'selectedDate': date_string
+            'selectedDate': date_string,
         }
+
         # Specify separators with no trailing whitespace for compact encoding.
         data = json.dumps(data, separators=(',', ':'))
 
-        logger.info(f'Requesting court availability data for {date_string}.')
         url = self.base_url + '/MIT/Library/OlsService.asmx/GetSchedulerResourceAvailability'
         response = requests.post(url, headers=settings.REQUEST_HEADERS, cookies=cookies, data=data)
 
         if response.status_code != 200:
             raise AvailabilityError
 
-        logger.info('Successfully retrieved court availability data.')
+        hours = {}
         courts = response.json()['d']['Value']
 
-        hours = {}
         for court in courts:
             resource_id = court['Id']
             number = constants.RESOURCES[resource_id]
 
-            hours[number] = self.hourly(court['Availability'], tomorrow)
+            hours[number] = hourly(court['Availability'], tomorrow)
 
         return hours
 
-    def hourly(self, minutes, tomorrow):
-        """
-        Convert raw availability data to an array of available hours.
-
-        The API represent's a court's availability as follows:
-
-        {
-            'Id': 17,
-            'Availability': [
-                {
-                    'IsAvailable': False,
-                    'TimeId': 0,
-                },
-                {
-                    'IsAvailable': False,
-                    'TimeId': 1,
-                },
-                ...
-                {
-                    'IsAvailable': False,
-                    'TimeId': 1439,
-                }
-            ]
-        }
-
-        Arguments:
-            minutes (list): The 'Availability' list, an example of which is above.
-            tomorrow (bool): Whether or not these times are for tomorrow.
-
-        Returns:
-            list: Hours during which the court is available.
-        """
-        hours = []
-        now = datetime.datetime.now()
-
-        for minute in minutes:
-            if minute['TimeId'] in constants.TOP_OF_HOUR and minute['IsAvailable']:
-                hour = minute['TimeId'] // 60
-
-                if tomorrow or hour > now.hour:
-                    hours.append(hour)
-
-        return hours
-
-    def book(self, number):
+    def book(self, number, hour, tomorrow=False):
         """
         Book a court.
 
         Arguments:
             number (int): The (Z-Center) court number to book.
+            hour (int): The (ISO 8601) hour for which to book.
+
+        Keyword Arguments:
+            tomorrow (bool): Whether to book a court for tomorrow instead of today.
+                The court reservation system only allows booking one day in advance.
+
+        Raises:
+            AvailabilityError: If the court is not available at the requested hour.
+            BookingError: If creation of a new booking fails.
         """
-        # TODO: Check availability before attempting to book.
-        raise NotImplementedError('Booking is not supported yet.')
+        date_string = slash_separated_date(tomorrow)
+        hour_string = constants.HOURS[hour]
+        logger.info(f'Booking court #{number} at {hour_string} on {date_string}.')
 
-        # This cURL command (with headers added) POSTs appears to stage a reservation,
-        # but doesn't complete it. Clicking through the booking process might be
-        # easier than dealing with the form submit required to complete the booking.
-        # curl 'https://east-a-60ols.csi-cloudapp.net/MIT/Library/OlsService.asmx/SetScheduleInformation' \
-        # --data-binary $'{scheduleInformation:\'{"ScheduleDate":"03/26/2017","Duration":60,"Resource":"Zesiger \
-        # Squash Court #1","Provider":"","SiteId":"1261","ProviderId":0,"ResourceId":"17","ServiceId":4,\
-        # "ServiceName":"Recreational Squash","ServiceUniqueIdentifier":"757170ab-4338-4ff6-868d-2fb51cc449f8"}\', \
-        # startTime:\'540\'}'
+        cookies = self.login()
 
-        # scheduler_path = (
-        #     '/MIT/Members/Scheduler/BookSchedule.aspx?'
-        #     'siteid=1261&'
-        #     'catid=fe02d8bf-d476-4738-aabe-d5b4c9df7d61&'
-        #     'provid=0&'
-        #     'serviceid=757170ab-4338-4ff6-868d-2fb51cc449f8&'
-        #     f'd={day_string}&'
-        #     'du=60'
-        # )
+        availability = self.availability(number=number, tomorrow=tomorrow)
+        if hour not in availability[number]:
+            raise AvailabilityError
 
-        # self.session.visit(scheduler_path)
+        schedule_data = {
+            'ScheduleDate': date_string,
+            'Duration': 60,
+            'Resource': f'Zesiger Squash Court #{number}',
+            'Provider': '',
+            'SiteId': 1261,
+            'ProviderId': 0,
+            # This resource ID must be a string. Don't ask me why.
+            'ResourceId': str(constants.COURTS[number]),
+            'ServiceId': 4,
+            'ServiceName': 'Recreational Squash',
+            'ServiceUniqueIdentifier': '757170ab-4338-4ff6-868d-2fb51cc449f8',
+        }
 
-        # court_listing = session.at_css('#ctl00_pageContentHolder_lstResource')
+        data = {
+            # The values for both of these keys need to be strings. (╯ಠ_ಠ）╯︵ ┻━┻
+            'scheduleInformation': json.dumps(schedule_data, separators=(',', ':')),
+            'startTime': str(hour * 60),
+        }
 
-        # courts = court_listing.xpath('option')
-        # for court in courts:
-        #     if 'zesiger' in court.text().lower():
-        #         court.select_option()
+        # Specify separators with no trailing whitespace for compact encoding.
+        data = json.dumps(data, separators=(',', ':'))
 
-        # select_all_id = '#ancSchSelectAll'
-        # session.at_css(select_all_id).click()
+        # This request "stages" a reservation, but doesn't complete it. Clicking
+        # through the booking process from this point is easier than dealing with
+        # the crazy form submit required to complete the booking.
+        url = self.base_url + '/MIT/Library/OlsService.asmx/SetScheduleInformation'
+        response = requests.post(url, headers=settings.REQUEST_HEADERS, cookies=cookies, data=data)
 
-        # # This element seems to overlap with the search button and prevents it from being clicked.
-        # problem_element_id = 'progressDialog_backgroundElement'
-        # js = (
-        #     f'var element = document.getElementById("{problem_element_id}");'
-        #     'element.parentNode.removeChild(element);'
-        # )
-        # session.exec_script(js)
+        if response.status_code != 200:
+            raise BookingError
 
-        # search_id = '#ancSchSearch'
-        # session.at_css(search_id).click()
+        confirm_path = '/MIT/Members/Scheduler/AddFamilyMembersScheduler.aspx?showOfflineMessage=true'
+        self.session.visit(confirm_path)
+
+        confirm_button = '#ctl00_pageContentHolder_btnContinueCart'
+        self.session.at_css(confirm_button).click()

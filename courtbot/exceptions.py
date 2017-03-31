@@ -4,3 +4,7 @@ class CourtbotException(Exception):
 
 class AvailabilityError(CourtbotException):
     pass
+
+
+class BookingError(CourtbotException):
+    pass
