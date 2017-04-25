@@ -207,7 +207,7 @@ class Bot:
             # flake8 thinks this variable is never used; it doesn't see it being
             # used in the f-string.
             date_string = slash_separated_date(tomorrow)  # noqa: F841
-            logger.exception('Failed to retrieve court availability data for {date_string}.')
+            logger.exception(f'Failed to retrieve court availability data for {date_string}.')
 
             self.post(message['channel'], f'@{user} something went wrong. Sorry!')
             return

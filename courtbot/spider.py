@@ -26,6 +26,11 @@ class Spider:
         self.base_url = 'https://east-a-60ols.csi-cloudapp.net'
         self.session = dryscrape.Session(base_url=self.base_url)
 
+        for key, value in settings.REQUEST_HEADERS.items():
+            # Seems to be a bug with how webkit-server handles Accept-Encoding.
+            if key.lower() != 'accept-encoding':
+                self.session.set_header(key, value)
+
         # No need to load images.
         self.session.set_attribute('auto_load_images', False)
 
@@ -183,4 +188,4 @@ class Spider:
         self.session.visit(confirm_path)
 
         confirm_button = '#ctl00_pageContentHolder_btnContinueCart'
-        self.session.at_css(confirm_button).click()
+        self.session.at_css(confirm_button, timeout=5).click()
