@@ -1,7 +1,5 @@
 .DEFAULT_GOAL := run
 
-.PHONY: help
-
 include .docker/docker.mk
 
 # Generates a help message. Borrowed from https://github.com/pydanny/cookiecutter-djangopackage.

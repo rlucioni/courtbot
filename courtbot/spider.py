@@ -1,7 +1,6 @@
 import json
 import logging
 import operator
-from time import sleep
 
 from cachetools import cachedmethod, TTLCache
 import dryscrape
@@ -25,11 +24,6 @@ class Spider:
         dryscrape.start_xvfb()
         self.base_url = 'https://east-a-60ols.csi-cloudapp.net'
         self.session = dryscrape.Session(base_url=self.base_url)
-
-        for key, value in settings.REQUEST_HEADERS.items():
-            # Seems to be a bug with how webkit-server handles Accept-Encoding.
-            if key.lower() != 'accept-encoding':
-                self.session.set_header(key, value)
 
         # No need to load images.
         self.session.set_attribute('auto_load_images', False)
@@ -58,10 +52,7 @@ class Spider:
         self.session.at_css(password_input).set(settings.DAPER_PASSWORD)
         self.session.at_css(login_button).click()
 
-        # It seems to take some time for dryscrape session cookies to be set.
-        # This pause ensures that cookies required for accessing the scheduling
-        # API are present.
-        sleep(1)
+        self.session.wait_for(lambda: self.session.at_css('#menu_SCH'))
 
         # Cookies returned by dryscrape are strings that look like the following:
         # 'AspxAutoDetectCookieSupport=1; domain=east-a-60ols.csi-cloudapp.net; path=/'
@@ -97,8 +88,6 @@ class Spider:
         date_string = slash_separated_date(tomorrow)
         logger.info(f'Requesting court availability data for {date_string}.')
 
-        cookies = self.login()
-
         resource_ids = [constants.COURTS[number]] if number else constants.RESOURCES.keys()
         data = {
             'siteId': '1261',
@@ -106,11 +95,8 @@ class Spider:
             'selectedDate': date_string,
         }
 
-        # Specify separators with no trailing whitespace for compact encoding.
-        data = json.dumps(data, separators=(',', ':'))
-
         url = self.base_url + '/MIT/Library/OlsService.asmx/GetSchedulerResourceAvailability'
-        response = requests.post(url, headers=settings.REQUEST_HEADERS, cookies=cookies, data=data)
+        response = requests.post(url, headers=settings.REQUEST_HEADERS, json=data)
 
         if response.status_code != 200:
             raise AvailabilityError
@@ -144,13 +130,14 @@ class Spider:
         """
         date_string = slash_separated_date(tomorrow)
         hour_string = constants.HOURS[hour]
-        logger.info(f'Booking court #{number} at {hour_string} on {date_string}.')
-
-        cookies = self.login()
+        logger.info(f'Attempting to book court #{number} at {hour_string} on {date_string}.')
 
         availability = self.availability(number=number, tomorrow=tomorrow)
         if hour not in availability[number]:
             raise AvailabilityError
+
+        cookies = self.login()
+        logger.info(f'Cookies present: {cookies}')
 
         schedule_data = {
             'ScheduleDate': date_string,
@@ -177,15 +164,16 @@ class Spider:
 
         # This request "stages" a reservation, but doesn't complete it. Clicking
         # through the booking process from this point is easier than dealing with
-        # the crazy form submit required to complete the booking.
+        # the crazy ASP.NET form submit required to complete the booking.
         url = self.base_url + '/MIT/Library/OlsService.asmx/SetScheduleInformation'
         response = requests.post(url, headers=settings.REQUEST_HEADERS, cookies=cookies, data=data)
 
         if response.status_code != 200:
             raise BookingError
 
-        confirm_path = '/MIT/Members/Scheduler/AddFamilyMembersScheduler.aspx?showOfflineMessage=true'
+        confirm_path = '/MIT/Members/Scheduler/AddFamilyMembersScheduler.aspx'
         self.session.visit(confirm_path)
 
         confirm_button = '#ctl00_pageContentHolder_btnContinueCart'
-        self.session.at_css(confirm_button, timeout=5).click()
+        self.session.wait_for(lambda: self.session.at_css(confirm_button))
+        self.session.at_css(confirm_button).click()

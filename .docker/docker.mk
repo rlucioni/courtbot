@@ -1,4 +1,5 @@
-.PHONY: image logs prune pull quality run shell stop
+debug: ## Run and attach to container for debugging
+	docker run -it --name courtbot --env-file .docker/env rlucioni/courtbot
 
 image: ## Build an rlucioni/courtbot image
 	docker build --tag rlucioni/courtbot:latest .
