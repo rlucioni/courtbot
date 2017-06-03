@@ -48,4 +48,4 @@ $ make help
 
 When changes are merged to master, Docker Cloud builds new images and pushes them to Docker Hub. Docker Cloud also manages a service which uses the image stored in Docker Hub. The service is hosted by a node cluster deployed on Digital Ocean. Docker Cloud’s autoredeploy feature automatically redeploys the service when a new image is pushed.
 
-If you're interested in setting up this continuous delivery system for yourself, see Docker Cloud's docs on [automated builds](https://docs.docker.com/docker-cloud/builds/automated-build/) and [deploying services](https://docs.docker.com/docker-cloud/getting-started/).
+If you're interested in setting up this continuous deployment system for yourself, see Docker Cloud's docs on [automated builds](https://docs.docker.com/docker-cloud/builds/automated-build/) and [deploying services](https://docs.docker.com/docker-cloud/getting-started/).
