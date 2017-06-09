@@ -1,6 +1,7 @@
-.docker/env
-.dockerignore
-.git
-.gitignore
-.python-version
-README.md
+*
+!courtbot
+!.flake8
+!Makefile
+!README.md
+!requirements.txt
+!run.py

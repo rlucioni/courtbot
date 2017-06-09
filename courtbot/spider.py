@@ -2,9 +2,9 @@ import json
 import logging
 import operator
 
-from cachetools import cachedmethod, TTLCache
-import dryscrape
 import requests
+from cachetools import cachedmethod, TTLCache
+from selenium import webdriver
 
 from courtbot import constants, settings
 from courtbot.exceptions import AvailabilityError, BookingError
@@ -21,12 +21,17 @@ class Spider:
     def __init__(self):
         logger.info('Initializing spider.')
 
-        dryscrape.start_xvfb()
-        self.base_url = 'https://east-a-60ols.csi-cloudapp.net'
-        self.session = dryscrape.Session(base_url=self.base_url)
+        options = webdriver.ChromeOptions()
+        options.binary_location = '/usr/bin/google-chrome-stable'
+        options.add_argument('headless')
+        # https://developers.google.com/web/updates/2017/04/headless-chrome#faq
+        options.add_argument('disable-gpu')
+        options.add_argument('window-size=1200x600')
 
-        # No need to load images.
-        self.session.set_attribute('auto_load_images', False)
+        self.driver = webdriver.Chrome(chrome_options=options)
+        self.driver.implicitly_wait(10)
+
+        self.base_url = 'https://east-a-60ols.csi-cloudapp.net'
 
         # LRU performs best when maxsize is a power of two.
         maxsize = 2 ** 5
@@ -42,24 +47,24 @@ class Spider:
         logger.info('Logging in to MIT Recreation.')
 
         login_path = '/MIT/Login.aspx'
-        self.session.visit(login_path)
+        self.driver.get(self.base_url + login_path)
 
-        username_input = '#ctl00_pageContentHolder_loginControl_UserName'
-        password_input = '#ctl00_pageContentHolder_loginControl_Password'
-        login_button = '#ctl00_pageContentHolder_loginControl_Login'
+        username_id = 'ctl00_pageContentHolder_loginControl_UserName'
+        password_id = 'ctl00_pageContentHolder_loginControl_Password'
 
-        self.session.at_css(username_input).set(settings.DAPER_USERNAME)
-        self.session.at_css(password_input).set(settings.DAPER_PASSWORD)
-        self.session.at_css(login_button).click()
+        # Headless Chrome still requires Xvfb for send_key interactions. A temporary
+        # workaround is to use JavaScript to fill form fields instead of send_keys.
+        # This is a known issue tracked by https://bugs.chromium.org/p/chromedriver/issues/detail?id=1772.
+        self.driver.execute_script(f'document.getElementById("{username_id}").value = "{settings.DAPER_USERNAME}";')
+        self.driver.execute_script(f'document.getElementById("{password_id}").value = "{settings.DAPER_PASSWORD}";')
 
-        self.session.wait_for(lambda: self.session.at_css('#menu_SCH'))
+        login_button = self.driver.find_element_by_css_selector('#ctl00_pageContentHolder_loginControl_Login')
+        login_button.click()
 
-        # Cookies returned by dryscrape are strings that look like the following:
-        # 'AspxAutoDetectCookieSupport=1; domain=east-a-60ols.csi-cloudapp.net; path=/'
-        cookies = [cookie.split(';')[0].split('=') for cookie in self.session.cookies()]
-        cookies = {name: value for name, value in cookies}
+        # Verify that login succeeded by waiting for this element to appear.
+        self.driver.find_element_by_css_selector('#menu_SCH')
 
-        return cookies
+        return {cookie['name']: cookie['value'] for cookie in self.driver.get_cookies()}
 
     def availability(self, number=None, tomorrow=False):
         """
@@ -172,8 +177,10 @@ class Spider:
             raise BookingError
 
         confirm_path = '/MIT/Members/Scheduler/AddFamilyMembersScheduler.aspx'
-        self.session.visit(confirm_path)
+        self.driver.get(self.base_url + confirm_path)
 
-        confirm_button = '#ctl00_pageContentHolder_btnContinueCart'
-        self.session.wait_for(lambda: self.session.at_css(confirm_button))
-        self.session.at_css(confirm_button).click()
+        confirm_button = self.driver.find_element_by_css_selector('#ctl00_pageContentHolder_btnContinueCart')
+        confirm_button.click()
+
+        # TODO: Verify that booking succeeded by waiting for a unique element to appear
+        # on the booking confirmation/receipt page.
