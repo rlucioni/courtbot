@@ -20,16 +20,10 @@ Tail a running container's logs:
 $ make logs
 ```
 
-Open a shell on a running container:
+Open a shell on a new container:
 
 ```
 $ make shell
-```
-
-Run quality checks:
-
-```
-$ make quality
 ```
 
 Build a new image:
