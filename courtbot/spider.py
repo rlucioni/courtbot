@@ -182,5 +182,6 @@ class Spider:
         confirm_button = self.driver.find_element_by_css_selector('#ctl00_pageContentHolder_btnContinueCart')
         confirm_button.click()
 
-        # TODO: Verify that booking succeeded by waiting for a unique element to appear
+        # Verify that booking succeeded by waiting for a unique element to appear
         # on the booking confirmation/receipt page.
+        self.driver.find_element_by_css_selector('#ctl00_pageContentHolder_lblThankYou')
