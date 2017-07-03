@@ -1,13 +1,19 @@
 sudo: required
 
-services:
-  - docker
+services: docker
 
+# Perform a shallow clone for speed. The default depth is 50.
+# https://docs.travis-ci.com/user/customizing-the-build#Git-Clone-Depth
+git:
+  depth: 3
+
+# Upgrade to the latest version of Docker
 before_install:
-  - make image
+  - sudo apt-get update
+  - sudo apt-get -y -o Dpkg::Options::="--force-confnew" install docker-ce
 
-script:
-  - docker run rlucioni/courtbot flake8
+install: make image
 
-after_success:
-  - ./.travis/docker-push.sh
+script: docker run rlucioni/courtbot flake8
+
+after_success: ./.travis/docker-push.sh
