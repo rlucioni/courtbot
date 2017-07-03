@@ -1,0 +1,13 @@
+sudo: required
+
+services:
+  - docker
+
+before_install:
+  - make image
+
+script:
+  - docker run rlucioni/courtbot flake8
+
+after_success:
+  - ./.travis/docker-push.sh

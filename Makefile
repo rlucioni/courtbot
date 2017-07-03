@@ -20,6 +20,9 @@ prune: ## Delete stopped containers and dangling images
 pull: ## Update the rlucioni/courtbot image
 	docker pull rlucioni/courtbot
 
+push: ## Push the rlucioni/courtbot image to Docker Hub
+	docker push rlucioni/courtbot
+
 run: ## Start a container derived from the rlucioni/courtbot image
 	docker run -d --privileged --name courtbot --env-file .docker/env --restart on-failure rlucioni/courtbot
 

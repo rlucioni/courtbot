@@ -1,5 +1,0 @@
-# Used for automated repository tests on Docker Cloud.
-# https://docs.docker.com/docker-cloud/builds/automated-testing/
-sut:
-  build: .
-  command: flake8

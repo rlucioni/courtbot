@@ -21,6 +21,14 @@ class Spider:
     def __init__(self):
         logger.info('Initializing spider.')
 
+        self.base_url = 'https://east-a-60ols.csi-cloudapp.net'
+        self.driver = None
+
+        # LRU performs best when maxsize is a power of two.
+        maxsize = 2 ** 5
+        self.cache = TTLCache(maxsize, settings.CACHE_TTL)
+
+    def start_chrome(self):
         options = webdriver.ChromeOptions()
         options.binary_location = '/usr/bin/google-chrome-stable'
         options.add_argument('headless')
@@ -31,11 +39,9 @@ class Spider:
         self.driver = webdriver.Chrome(chrome_options=options)
         self.driver.implicitly_wait(10)
 
-        self.base_url = 'https://east-a-60ols.csi-cloudapp.net'
-
-        # LRU performs best when maxsize is a power of two.
-        maxsize = 2 ** 5
-        self.cache = TTLCache(maxsize, settings.CACHE_TTL)
+    def quit_chrome(self):
+        # Shuts down the ChromeDriver executable.
+        self.driver.quit()
 
     @cachedmethod(operator.attrgetter('cache'))
     def login(self):
@@ -141,6 +147,8 @@ class Spider:
         if hour not in availability[number]:
             raise AvailabilityError
 
+        self.start_chrome()
+
         cookies = self.login()
         logger.info(f'Cookies present: {cookies}')
 
@@ -185,3 +193,5 @@ class Spider:
         # Verify that booking succeeded by waiting for a unique element to appear
         # on the booking confirmation/receipt page.
         self.driver.find_element_by_css_selector('#ctl00_pageContentHolder_lblThankYou')
+
+        self.quit_chrome()
