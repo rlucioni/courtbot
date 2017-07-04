@@ -92,3 +92,5 @@ ENV/
 .DS_Store
 
 .docker/env
+.travis/deploy_key
+secrets.tar

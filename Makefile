@@ -1,33 +1,41 @@
-.DEFAULT_GOAL := run
+.DEFAULT_GOAL := help
 
 # Generates a help message. Borrowed from https://github.com/pydanny/cookiecutter-djangopackage.
 help: ## Display this help message
 	@echo "Please run \`make <target>\` where <target> is one of"
 	@perl -nle'print $& if m{^[\.a-zA-Z_-]+:.*?## .*$$}' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m  %-25s\033[0m %s\n", $$1, $$2}'
 
-debug: ## Run and attach to container for debugging
-	docker run -it --privileged --env-file .docker/env rlucioni/courtbot
+attach: ## Attach to a running courtbot container for debugging
+	docker attach courtbot
 
-image: ## Build an rlucioni/courtbot image
-	docker build -t rlucioni/courtbot:latest .
+build: ## Build service images
+	docker-compose build
 
-logs: ## Tail a running container's logs
-	docker logs -f courtbot
+down: ## Stop services
+	docker-compose down
+
+encrypt: ## Encrypt secrets
+	# https://docs.travis-ci.com/user/encrypting-files/#Encrypting-multiple-files
+	tar cvf secrets.tar .docker/env .travis/deploy_key
+	travis encrypt-file secrets.tar
+
+logs: ## Tail service logs
+	docker-compose logs -f
 
 prune: ## Delete stopped containers and dangling images
 	docker system prune -f
 
-pull: ## Update the rlucioni/courtbot image
-	docker pull rlucioni/courtbot
+pull: ## Pull service images from Docker Hub
+	docker-compose pull
 
 push: ## Push the rlucioni/courtbot image to Docker Hub
 	docker push rlucioni/courtbot
 
-run: ## Start a container derived from the rlucioni/courtbot image
-	docker run -d --privileged --name courtbot --env-file .docker/env --restart on-failure rlucioni/courtbot
+shell: ## Open a shell on a one-off courtbot container
+	docker-compose run --rm courtbot /usr/bin/env bash
 
-shell: ## Open a shell on a courtbot container
-	docker run -it --privileged rlucioni/courtbot:latest /usr/bin/env bash
+test: ## Run tests on a one-off courtbot container
+	docker-compose run --rm courtbot flake8
 
-stop: ## Stop a running container
-	docker stop courtbot
+up: ## Start services in detached mode
+	docker-compose up -d

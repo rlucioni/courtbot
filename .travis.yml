@@ -1,5 +1,4 @@
 sudo: required
-
 services: docker
 
 # Perform a shallow clone for speed. The default depth is 50.
@@ -7,13 +6,24 @@ services: docker
 git:
   depth: 3
 
-# Upgrade to the latest version of Docker
 before_install:
-  - sudo apt-get update
-  - sudo apt-get -y -o Dpkg::Options::="--force-confnew" install docker-ce
+  - ./.travis/upgrade-docker.sh
+  - ./.travis/upgrade-docker-compose.sh
+  - ./.travis/decrypt.sh
 
-install: make image
+install: make build
 
-script: docker run rlucioni/courtbot flake8
+script: make test
 
-after_success: ./.travis/docker-push.sh
+deploy:
+  on:
+    branch: master
+  provider: script
+  script: .travis/deploy.sh
+  skip_cleanup: true
+
+env:
+  global:
+    - secure: NfKH1Nw/Cd6eGM70rHhUt9TsFDXW+oCpDHnw7H7OAbmtv/PNowcIjY1TM+2jjc7Wp3SKvPX+7eC3D4vUzH1ZqczIrqFTzvsVZhVWmTItK2n8G+/9bEkCK9bne+u4x08HRKiIZYfcey0YUwK1bfxxXkFchkZzKzTRKkysj0zEJ0/uqdtfg4zXdAoZquJ996TJO2Rrri7lImWtTbEV21zTSBwzeiMOiw+ha4B5aoKQ+Hn3bEn/1monIgvQRJZShkZFir1MC056SPE7+cAQK9zIBuRIKHXEMrTcpQXgYoClHicoqRowtDqyoax9CWrhl/R6a2zwpqWB7q+Btm6NAEyix16XV2Eoz76PbFEjHls8e6/BUp670jS7AHA1PvpCd+5/mSMhUAio5OjEvhb5uWACh160GaKHz+PKqP1xWKaJkwCr4Du+5jvwdr8TwF8VWWdKjLwxuYfd+tZDWFWF9eMjJS+QiH32xSEplN9vYEeXEFFC+TCW4ItNOGA07QuNgB6MlicUlrvAtXrJ4JTK3J0/Dx0hVV8kMwitsGFGjU6CaAmjkBZUR3XED9DMU3obYthzc1fs5yHuuo/j6zbh1KNdl+UnhYI4kmzjigZYyyzTHYi8Ssr04UB/nACH6cOV8iM99hhFV93wqvdYQdQjP5++2VUivUKWJYHHDkPzGzqk/JE=
+    - secure: vgmqZIkV6AXqKjLIPYl10PqrJNX2081Db1JQQwzTQjaYrdMjXgJbHqDHOt9U+5EQmNRnFjgw1VKyW2A0ijfizQQZP/d0+h6R74AcCmEz7dcQAez0D1VV5OUo5VRQVdFyqAtoaHQ0UhWSs+uHle0ieAg5EeMBtoL49vGKcjAchO/E7R+Q2B7teO5w10Ls7jIApTT4k12hJZlzlLbetoSHyVhgiFdzRE/gEAs0CdhMNQeZCdY2OGQv5hsKNYdtj+RGWmKmLYES9ucvGWHPb7aaEwNHhPaKjfeygzD5Q1QK2YFn2FQnz6l4mywg7Oqwl3jgR6TzvHg4kKX2ff86GyMwKTI2LQbsnJxKQpQc0lbL8vYpDW3Wy6wkVQFgtQ7NWaXWUttBIbcZyMhS3cPDyUuVg06RGa8c+ocvztJ3hKVyIQuwQYHoXQFoowffSn+fWxC4Ws21c/QnhpCmbgZBwskeOuZPiQIbuXXxtzDAd8Li6Yp9lJlhTPixUifhu4aOF4eS9smva+xMd6LSnKp9ELFuIM6cKoJuqntTuBhAwgZ+t0sz9HVK0sqhmX/TvBPkWugu7bhgEmQKqJlMMiAZ/vYsad/X79qkm6i6+sDx2QPJKAfbjB4jM/b6WYHDEtXxEPWOonghT0jQicvE1tjgcCxlDXreOEHnO787fHBA2bFOS3M=
+    - secure: 4dq59NDCmXrahjwlyo7wKZExUxODgPj66ZJo/s3SPQpZRyBFM4vmqy8cTRP3zA8UkDercJhzsJ5Y4snLbj0+liSLUsa7uImkLWKX420uo+rMK7A1qV0piemZzBAHmb394K8GbmlrZKYl5NVAYJQiJs99pCGxWtbLsUdV5xmVOXEcFiIUMnuJHmKY9JoV4dFC7uRCVbDe7Nc3ZLnfJd0HRsMUb+zVsh8WpoEPfvhVjunrWNBYU9Kkih3c2IHjjeqTwVvv/OLC7oN/tmO7iVcuAt90x7NQjPX5dO/yQBdYgSCN+V8OO2rXepQx2DgpuO5G/eZEA3aPPqtxCU7Pl6afJ//iI6MxDc/CC2l1XT6Wu5/QPtp0k1so+1Mm5DQtQYRtNzz3w99ODy3rA4j3bAmbaQdnem3vWJARyzbDmxvp9FFw1NYgZ9anugpL55Ryl4mqZqYl0HZxmb8Qi7wVHWC6ookP6UL4zD6f3jd4QJ/ZjrHrMw1nJTLxwWTRM7mAw072nXIkq+PWm4oFk2SRsmmJ/6PNGqM7TqTuD8xLIbtzRuudhN4O0GPuZbYLZJE6VWjXOKEoQN4P1JLAahoHCpvxSr98HqFruASaIu5TWkvAcV1UXa0pZ4jA0ho9JDSMNOMEcLDBUSrdl6IrGh2K+apeK7VG6bIDmso4eJMlfhXWMrw=

@@ -1,7 +1,6 @@
 *
 !courtbot
 !.flake8
-!Makefile
 !README.md
 !requirements.txt
 !run.py
