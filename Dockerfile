@@ -23,8 +23,7 @@ RUN curl -O https://chromedriver.storage.googleapis.com/2.30/chromedriver_linux6
 # This is to account for the fact that running Chrome requires a "privileged"
 # container. For more on why the --privileged option is necessary, see
 # https://github.com/jessfraz/dockerfiles/issues/65#issuecomment-271085821.
-# --cap-add SYS_ADMIN can be used as an alternative to --privileged, but Docker
-# Cloud (where this service is hosted) doesn't appear to support it.
+# --cap-add SYS_ADMIN can be used as an alternative to --privileged.
 RUN groupadd -r chrome && \
     useradd -r -g chrome -G audio,video chrome && \
     # Give the new user a home directory.

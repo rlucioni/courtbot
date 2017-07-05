@@ -10,7 +10,10 @@ cp docker-compose.yml artifact/docker-compose.yml
 cp Makefile artifact/Makefile
 cp .travis/update.sh artifact/update.sh
 
-scp -o StrictHostKeyChecking=no -i .travis/deploy_key -r artifact travis@${DROPLET_IP}:courtbot
+# The syntax of the arguments provided here is important! We want to copy the
+# contents of the artifact directory over the contents of the courtbot directory,
+# creating it if it doesn't exist.
+scp -o StrictHostKeyChecking=no -i .travis/deploy_key -r artifact/. travis@${DROPLET_IP}:courtbot/
 echo "Copied build artifact to production host."
 
 ssh -o StrictHostKeyChecking=no -i .travis/deploy_key travis@${DROPLET_IP} "cd courtbot && ./update.sh"
