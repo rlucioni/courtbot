@@ -22,8 +22,8 @@ encrypt: ## Encrypt secrets
 logs: ## Tail service logs
 	docker-compose logs -f
 
-prune: ## Delete stopped containers and dangling images
-	docker system prune -f
+prune: ## Remove unused images
+	docker image prune -af
 
 pull: ## Pull service images from Docker Hub
 	docker-compose pull
