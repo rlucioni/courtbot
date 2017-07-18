@@ -5,6 +5,7 @@ import operator
 import requests
 from cachetools import cachedmethod, TTLCache
 from selenium import webdriver
+from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 
 from courtbot import constants, settings
 from courtbot.exceptions import AvailabilityError, BookingError
@@ -31,14 +32,13 @@ class Spider:
     def start_chrome(self):
         logger.info('Starting Chrome.')
 
-        options = webdriver.ChromeOptions()
-        options.binary_location = '/usr/bin/google-chrome-stable'
-        options.add_argument('headless')
-        # https://developers.google.com/web/updates/2017/04/headless-chrome#faq
-        options.add_argument('disable-gpu')
-        options.add_argument('window-size=1200x600')
+        # https://github.com/SeleniumHQ/selenium/blob/master/py/selenium/webdriver/remote/webdriver.py
+        self.driver = webdriver.Remote(
+            command_executor='http://chrome:4444/wd/hub',
+            desired_capabilities=DesiredCapabilities.CHROME
+        )
 
-        self.driver = webdriver.Chrome(chrome_options=options)
+        self.driver.set_window_size(1440, 900)
         self.driver.implicitly_wait(10)
 
     def quit_chrome(self):

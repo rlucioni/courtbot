@@ -35,7 +35,7 @@ shell: ## Open a shell on a one-off courtbot container
 	docker-compose run --rm courtbot /usr/bin/env bash
 
 test: ## Run tests on a one-off courtbot container
-	docker-compose run --rm courtbot flake8
+	docker-compose run --rm --no-deps courtbot flake8
 
 up: ## Start services in detached mode
 	docker-compose up -d

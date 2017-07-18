@@ -3,10 +3,16 @@ services:
   courtbot:
     build: .
     container_name: courtbot
+    depends_on:
+      - chrome
     env_file:
       - .docker/env
     image: rlucioni/courtbot:latest
-    privileged: true
     restart: on-failure
     stdin_open: true
     tty: true
+  chrome:
+    container_name: chrome
+    # https://hub.docker.com/r/selenium/standalone-chrome/
+    image: selenium/standalone-chrome:latest
+    restart: on-failure
