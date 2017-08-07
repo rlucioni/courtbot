@@ -1,5 +1,0 @@
-cachetools==2.0.0
-flake8==3.3.0
-requests==2.13.0
-selenium==3.4.3
-slackclient==1.0.5

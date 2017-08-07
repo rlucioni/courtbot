@@ -1,0 +1,43 @@
+{
+  "name": "courtbot",
+  "version": "1.0.0",
+  "description": "Bot for reserving squash courts.",
+  "scripts": {
+    "test": "eslint .",
+    "deploy": "cd courtbot && serverless deploy",
+    "deploy:router": "npm run deploy -- function -f router",
+    "deploy:look": "npm run deploy -- function -f look",
+    "deploy:book": "npm run deploy -- function -f book",
+    "logs": "cd courtbot && serverless logs -t",
+    "logs:router": "npm run logs -- -f router",
+    "logs:look": "npm run logs -- -f look",
+    "logs:book": "npm run logs -- -f book",
+    "list": "npm run deploy -- list",
+    "functions": "npm run deploy -- list functions",
+    "info": "cd courtbot && serverless info",
+    "metrics": "cd courtbot && serverless metrics"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rlucioni/courtbot.git"
+  },
+  "author": "Renzo Lucioni",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/rlucioni/courtbot/issues"
+  },
+  "homepage": "https://github.com/rlucioni/courtbot#readme",
+  "dependencies": {
+    "serverless": "1.19.0",
+    "serverless-plugin-warmup": "3.0.5-rc.1",
+    "serverless-prune-plugin": "1.1.1"
+  },
+  "devDependencies": {
+    "eslint": "4.4.1",
+    "eslint-config-standard": "10.2.1",
+    "eslint-plugin-import": "2.7.0",
+    "eslint-plugin-node": "5.1.1",
+    "eslint-plugin-promise": "3.5.0",
+    "eslint-plugin-standard": "3.0.1"
+  }
+}

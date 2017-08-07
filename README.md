@@ -1,59 +1,24 @@
 # courtbot 
 
-Bot for checking squash court availability.
+Slack app providing slash commands for reserving squash courts.
 
-## Development
+## Quickstart
 
-Create a new Slack [bot user](https://api.slack.com/bot-users). Retrieve your bot user's API token and put it in a new file, `.docker/env`. See `.docker/env.example` for an example. Other environment variables can be placed in this file to override default settings.
+This project is intended to support a Slack app providing custom slash commands. It uses the [Serverless](https://github.com/serverless/serverless) framework. For AWS provider docs, see [here](https://serverless.com/framework/docs/providers/aws/).
 
-With Docker and Docker Compose installed and running, start the bot:
+To get started, create a [Slack app](https://api.slack.com/slack-apps). Next, configure your AWS [credentials](https://serverless.com/framework/docs/providers/aws/cli-reference/config-credentials/), so Serverless can find them. Finally, install courtbot's dependencies so they can be packaged with the service, then deploy the service (i.e., create the Lambdas):
 
-```
-$ make up
-```
-
-If the image doesn't exist locally, Docker Compose will pull it from [Docker Hub](https://hub.docker.com/r/rlucioni/courtbot/) then start the `courtbot` service (i.e., container).
-
-Tail service logs:
-
-```
-$ make logs
+```sh
+$ cd courtbot && npm install
+$ cd .. && npm run deploy
 ```
 
-Open a shell on a one-off `courtbot` container:
+Configure slash commands that POST to the deployed `router` endpoint.
 
-```
-$ make shell
-```
+To run ESLint:
 
-Build a new `courtbot` image:
+    $ npm run lint
 
-```
-$ make build
-```
+To see other `npm` scripts:
 
-For information about additional Make targets:
-
-```
-$ make help
-```
-
-## Deployment
-
-Travis manages deployment. Travis builds a new image for every commit, on every branch. This image is used to run tests.
-
-When changes are merged to master, Travis builds a new image as usual. However, it also pushes the new image to Docker Hub. Travis then assembles a build artifact and copies it to the production host, a DigitalOcean Droplet. Finally, Travis runs an update script included in the build artifact on the production host via SSH. The update script pulls new images from Docker Hub, stops all services, brings the services up again using fresh images and config, and deletes any unused images.
-
-If you need to update deployed config, you'll need to create a new encrypted archive. Doing so requires installing the Travis CLI:
-
-```
-$ gem install travis
-```
-
-And logging into Travis:
-
-```
-$ travis login --org
-```
-
-Once you've done the above, make your change in `.docker/env`, then run `make encrypt`. Commit the updated `secrets.tar.enc` file.
+    $ npm run
