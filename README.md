@@ -17,8 +17,12 @@ Configure slash commands that POST to the deployed `router` endpoint.
 
 To run ESLint:
 
-    $ npm run lint
+```sh
+$ npm run lint
+```
 
 To see other `npm` scripts:
 
-    $ npm run
+```sh
+$ npm run
+```
