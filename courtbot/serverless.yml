@@ -4,6 +4,7 @@ service: courtbot
 frameworkVersion: "=1.19.0"
 
 plugins:
+  - serverless-secrets-plugin
   - serverless-plugin-warmup
   - serverless-prune-plugin
 
@@ -17,23 +18,26 @@ provider:
         - lambda:InvokeFunction
         - lambda:InvokeAsync
       Resource: "*"
-  environment:
-    # TODO: Use serverless-secrets-plugin
-    # https://github.com/serverless/examples/tree/master/aws-node-env-variables-encrypted-in-a-file
-    VERIFICATION_TOKEN: ${env:VERIFICATION_TOKEN}
-    TEAM_ID: ${env:TEAM_ID}
-    MIT_RECREATION_USERNAME: ${env:MIT_RECREATION_USERNAME}
-    MIT_RECREATION_PASSWORD: ${env:MIT_RECREATION_PASSWORD}
 
 custom:
   # https://github.com/claygregory/serverless-prune-plugin
   prune:
     automatic: true
     number: 3
+  # https://github.com/serverless/serverless-secrets-plugin
+  secrets: ${file(secrets.${opt:stage}.yml)}
+
+package:
+  exclude:
+    - secrets.${opt:stage}.yml
+    - secrets.${opt:stage}.yml.encrypted
 
 functions:
   router:
     handler: handler.router
+    environment:
+      SLACK_TEAM_ID: ${self:custom.secrets.SLACK_TEAM_ID}
+      SLACK_VERIFICATION_TOKEN: ${self:custom.secrets.SLACK_VERIFICATION_TOKEN}
     # https://github.com/FidelLimited/serverless-plugin-warmup
     warmup: true
     events:
@@ -44,4 +48,7 @@ functions:
     handler: handler.look
   book:
     handler: handler.book
+    environment:
+      MIT_RECREATION_PASSWORD: ${self:custom.secrets.MIT_RECREATION_PASSWORD}
+      MIT_RECREATION_USERNAME: ${self:custom.secrets.MIT_RECREATION_USERNAME}
     timeout: 10

@@ -2,10 +2,10 @@ const moment = require('moment-timezone')
 
 module.exports.isValid = data => {
   // Verify that a given request was issued by Slack.
-  const verificationToken = process.env.VERIFICATION_TOKEN
-  const teamId = process.env.TEAM_ID
+  const slackVerificationToken = process.env.SLACK_VERIFICATION_TOKEN
+  const slackTeamId = process.env.SLACK_TEAM_ID
 
-  return data.token === verificationToken && data.team_id === teamId
+  return data.token === slackVerificationToken && data.team_id === slackTeamId
 }
 
 module.exports.convertClock = twelveHourString => {

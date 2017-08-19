@@ -4,18 +4,20 @@
   "description": "Bot for reserving squash courts.",
   "scripts": {
     "test": "eslint .",
-    "deploy": "cd courtbot && serverless deploy",
-    "deploy:router": "npm run deploy -- function -f router",
-    "deploy:look": "npm run deploy -- function -f look",
-    "deploy:book": "npm run deploy -- function -f book",
-    "logs": "cd courtbot && serverless logs -t",
+    "encrypt": "cd courtbot && serverless encrypt --stage dev --password",
+    "decrypt": "cd courtbot && serverless decrypt --stage dev --password",
+    "deploy": "cd courtbot && serverless deploy --stage dev",
+    "deploy:router": "cd courtbot && serverless deploy function -f router --stage dev",
+    "deploy:look": "cd courtbot && serverless deploy function -f look --stage dev",
+    "deploy:book": "cd courtbot && serverless deploy function -f book --stage dev",
+    "logs": "cd courtbot && serverless logs --stage dev -t",
     "logs:router": "npm run logs -- -f router",
     "logs:look": "npm run logs -- -f look",
     "logs:book": "npm run logs -- -f book",
-    "list": "npm run deploy -- list",
-    "functions": "npm run deploy -- list functions",
-    "info": "cd courtbot && serverless info",
-    "metrics": "cd courtbot && serverless metrics"
+    "list": "cd courtbot && serverless deploy list --stage dev",
+    "functions": "cd courtbot && serverless deploy list functions --stage dev",
+    "info": "cd courtbot && serverless info --stage dev",
+    "metrics": "cd courtbot && serverless metrics --stage dev"
   },
   "repository": {
     "type": "git",
@@ -30,7 +32,8 @@
   "dependencies": {
     "serverless": "1.19.0",
     "serverless-plugin-warmup": "3.0.5-rc.1",
-    "serverless-prune-plugin": "1.1.1"
+    "serverless-prune-plugin": "1.1.1",
+    "serverless-secrets-plugin": "0.0.1"
   },
   "devDependencies": {
     "eslint": "4.4.1",
