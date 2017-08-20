@@ -1,23 +1,24 @@
 {
   "name": "courtbot",
   "version": "1.0.0",
-  "description": "Bot for reserving squash courts.",
+  "description": "Slack app providing slash commands for reserving squash courts.",
   "scripts": {
     "test": "eslint .",
-    "encrypt": "cd courtbot && serverless encrypt --stage dev --password",
-    "decrypt": "cd courtbot && serverless decrypt --stage dev --password",
-    "deploy": "cd courtbot && serverless deploy --stage dev",
-    "deploy:router": "cd courtbot && serverless deploy function -f router --stage dev",
-    "deploy:look": "cd courtbot && serverless deploy function -f look --stage dev",
-    "deploy:book": "cd courtbot && serverless deploy function -f book --stage dev",
-    "logs": "cd courtbot && serverless logs --stage dev -t",
+    "encrypt": "serverless encrypt --stage dev --password",
+    "decrypt": "serverless decrypt --stage dev --password",
+    "package": "serverless package --stage dev",
+    "deploy": "serverless deploy --stage dev",
+    "deploy:router": "serverless deploy function -f router --stage dev",
+    "deploy:look": "serverless deploy function -f look --stage dev",
+    "deploy:book": "serverless deploy function -f book --stage dev",
+    "logs": "serverless logs --stage dev -t",
     "logs:router": "npm run logs -- -f router",
     "logs:look": "npm run logs -- -f look",
     "logs:book": "npm run logs -- -f book",
-    "list": "cd courtbot && serverless deploy list --stage dev",
-    "functions": "cd courtbot && serverless deploy list functions --stage dev",
-    "info": "cd courtbot && serverless info --stage dev",
-    "metrics": "cd courtbot && serverless metrics --stage dev"
+    "list": "serverless deploy list --stage dev",
+    "functions": "serverless deploy list functions --stage dev",
+    "info": "serverless info --stage dev",
+    "metrics": "serverless metrics --stage dev"
   },
   "repository": {
     "type": "git",
@@ -30,10 +31,10 @@
   },
   "homepage": "https://github.com/rlucioni/courtbot#readme",
   "dependencies": {
-    "serverless": "1.19.0",
-    "serverless-plugin-warmup": "3.0.5-rc.1",
-    "serverless-prune-plugin": "1.1.1",
-    "serverless-secrets-plugin": "0.0.1"
+    "cheerio": "1.0.0-rc.2",
+    "moment": "2.18.1",
+    "moment-timezone": "0.5.13",
+    "request": "2.81.0"
   },
   "devDependencies": {
     "eslint": "4.4.1",
@@ -41,6 +42,10 @@
     "eslint-plugin-import": "2.7.0",
     "eslint-plugin-node": "5.1.1",
     "eslint-plugin-promise": "3.5.0",
-    "eslint-plugin-standard": "3.0.1"
+    "eslint-plugin-standard": "3.0.1",
+    "serverless": "1.20.2",
+    "serverless-plugin-warmup": "3.0.5-rc.1",
+    "serverless-prune-plugin": "1.1.1",
+    "serverless-secrets-plugin": "0.0.1"
   }
 }

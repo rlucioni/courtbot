@@ -1,7 +1,6 @@
 service: courtbot
 
-# TODO: Upgrade to >=1.20.2
-frameworkVersion: "=1.19.0"
+frameworkVersion: "=1.20.2"
 
 plugins:
   - serverless-secrets-plugin
@@ -28,13 +27,24 @@ custom:
   secrets: ${file(secrets.${opt:stage}.yml)}
 
 package:
+  # Serverless automatically excludes development dependencies 
   exclude:
+    - .eslint*
+    - .git/**
+    - .gitignore
+    - .nvmrc
+    - .travis.yml
+    - LICENSE
+    - package-lock.json
+    - package.json
+    - README.md
     - secrets.${opt:stage}.yml
     - secrets.${opt:stage}.yml.encrypted
+    - serverless.yml
 
 functions:
   router:
-    handler: handler.router
+    handler: src/index.router
     environment:
       SLACK_TEAM_ID: ${self:custom.secrets.SLACK_TEAM_ID}
       SLACK_VERIFICATION_TOKEN: ${self:custom.secrets.SLACK_VERIFICATION_TOKEN}
@@ -45,9 +55,9 @@ functions:
           method: POST
           path: router
   look:
-    handler: handler.look
+    handler: src/index.look
   book:
-    handler: handler.book
+    handler: src/index.book
     environment:
       MIT_RECREATION_PASSWORD: ${self:custom.secrets.MIT_RECREATION_PASSWORD}
       MIT_RECREATION_USERNAME: ${self:custom.secrets.MIT_RECREATION_USERNAME}
