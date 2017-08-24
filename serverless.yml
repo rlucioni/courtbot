@@ -61,4 +61,4 @@ functions:
     environment:
       MIT_RECREATION_PASSWORD: ${self:custom.secrets.MIT_RECREATION_PASSWORD}
       MIT_RECREATION_USERNAME: ${self:custom.secrets.MIT_RECREATION_USERNAME}
-    timeout: 10
+    timeout: 20
