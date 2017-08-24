@@ -11,7 +11,7 @@
     "deploy:router": "serverless deploy function -f router --stage dev",
     "deploy:look": "serverless deploy function -f look --stage dev",
     "deploy:book": "serverless deploy function -f book --stage dev",
-    "logs": "serverless logs --stage dev -t",
+    "logs": "serverless logs --stage dev -t --startTime 1h",
     "logs:router": "npm run logs -- -f router",
     "logs:look": "npm run logs -- -f look",
     "logs:book": "npm run logs -- -f book",
