@@ -6,18 +6,21 @@ const tz = 'America/New_York'
 
 class Scheduler {
   constructor () {
-    this.mitRecreationUsername = process.env.MIT_RECREATION_USERNAME
-    this.mitRecreationPassword = process.env.MIT_RECREATION_PASSWORD
+    const mitRecreationUsernames = process.env.MIT_RECREATION_USERNAMES.split(',')
+    const mitRecreationPasswords = process.env.MIT_RECREATION_PASSWORDS.split(',')
+
+    // Zip usernames and passwords together.
+    this.credentials = mitRecreationUsernames.map((el, i) => [el, mitRecreationPasswords[i]])
 
     this.baseUrl = 'https://east-a-60ols.csi-cloudapp.net'
     this.jar = request.jar()
   }
 
-  login () {
+  login (username, password) {
     // Login to the MIT Recreation website.
     let form = require('./forms/login.json')
-    form.ctl00$pageContentHolder$loginControl$UserName = this.mitRecreationUsername
-    form.ctl00$pageContentHolder$loginControl$Password = this.mitRecreationPassword
+    form.ctl00$pageContentHolder$loginControl$UserName = username
+    form.ctl00$pageContentHolder$loginControl$Password = password
 
     // For some unknown reason, this cookie won't be set if it's not present before
     // the login request is made. The value of the cookie is overwritten during
@@ -121,7 +124,7 @@ class Scheduler {
 
           const headers = {
             // Without this header, the subsequent POST will fail. Looks like the
-            // booking backend might blocking requests without a User-Agent header.
+            // booking backend might block requests without a User-Agent header.
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.90 Safari/537.36',
           }
 
@@ -169,19 +172,45 @@ class Scheduler {
 
   book (courtNumber, hour, isTomorrow) {
     return new Promise((resolve, reject) => {
-      this.login().then(response => {
-        console.log('Logged in')
+      let errors = []
 
-        this.stage(courtNumber, hour, isTomorrow).then(response => {
-          console.log('Staged reservation')
+      // I call this function recursively to execute the promises returned by the
+      // booking functions serially. You can't just use a for loop and break out
+      // of it because the booking functions are asynchronous. If you try to loop
+      // across all credential pairs, you'll end up queueing booking attempts with
+      // every username and password (instead of stopping early when one works).
+      const attemptBooking = index => {
+        if (index >= this.credentials.length) {
+          reject(errors)
+        }
 
-          this.confirm().then(body => {
+        let [username, password] = this.credentials[index]
+
+        this.login(username, password)
+          .then(_ => {
+            console.log(`Logged in as ${username}`)
+            // Remember to always return promises up! Otherwise callbacks won't
+            // chain, and errors won't be caught. Arrow functions only return
+            // implicitly when brackets are left out. For more, see
+            // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Using_promises#Chaining
+            return this.stage(courtNumber, hour, isTomorrow)
+          })
+          .then(_ => {
+            console.log('Staged reservation')
+            return this.confirm()
+          })
+          .then(_ => {
             console.log('Confirmed reservation!')
-
             resolve('Success')
-          }).catch(error => reject(error))
-        }).catch(error => reject(error))
-      }).catch(error => reject(error))
+          })
+          .catch(error => {
+            console.log(`Attempt to book as ${username} failed`)
+            errors.push(error)
+            attemptBooking(index + 1)
+          })
+      }
+
+      attemptBooking(0)
     })
   }
 }

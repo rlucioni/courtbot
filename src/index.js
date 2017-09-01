@@ -169,8 +169,10 @@ module.exports.book = (event, context) => {
     s.book(courtNumber, hour, isTomorrow).then(_ => {
       body.text = `All set! I've booked #${courtNumber} at ${twelveHourTime} ${period}${isTomorrow ? ' tomorrow' : ''}.`
       request.post(options, (..._) => {})
-    }).catch(error => {
-      console.error(error)
+    }).catch(errors => {
+      for (let error of errors) {
+        console.error(error)
+      }
 
       body.text = 'Something went wrong. Sorry!'
       request.post(options, (..._) => {})
