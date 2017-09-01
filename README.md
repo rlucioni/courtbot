@@ -18,7 +18,7 @@ Development dependencies will be automatically excluded when the service is pack
 $ npm run decrypt -- <your password here>
 ```
 
-If you create the file yourself, encrypt it with the following command to create a file you can commit:
+See `secrets.dev.yml.example` for an example of what the file should look like. If you create the file yourself, encrypt it with the following command to create a file you can commit:
 
 ```sh
 $ npm run encrypt -- <your password here>
