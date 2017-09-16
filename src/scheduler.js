@@ -180,34 +180,34 @@ class Scheduler {
       // across all credential pairs, you'll end up queueing booking attempts with
       // every username and password (instead of stopping early when one works).
       const attemptBooking = index => {
-        if (index >= this.credentials.length) {
+        if (index < this.credentials.length) {
+          let [username, password] = this.credentials[index]
+
+          this.login(username, password)
+            .then(_ => {
+              console.log(`Logged in as ${username}`)
+              // Remember to always return promises up! Otherwise callbacks won't
+              // chain, and errors won't be caught. Arrow functions only return
+              // implicitly when brackets are left out. For more, see
+              // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Using_promises#Chaining
+              return this.stage(courtNumber, hour, isTomorrow)
+            })
+            .then(_ => {
+              console.log('Staged reservation')
+              return this.confirm()
+            })
+            .then(_ => {
+              console.log('Confirmed reservation!')
+              resolve('Success')
+            })
+            .catch(error => {
+              console.log(`Attempt to book as ${username} failed`)
+              errors.push(error)
+              attemptBooking(index + 1)
+            })
+        } else {
           reject(errors)
         }
-
-        let [username, password] = this.credentials[index]
-
-        this.login(username, password)
-          .then(_ => {
-            console.log(`Logged in as ${username}`)
-            // Remember to always return promises up! Otherwise callbacks won't
-            // chain, and errors won't be caught. Arrow functions only return
-            // implicitly when brackets are left out. For more, see
-            // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Using_promises#Chaining
-            return this.stage(courtNumber, hour, isTomorrow)
-          })
-          .then(_ => {
-            console.log('Staged reservation')
-            return this.confirm()
-          })
-          .then(_ => {
-            console.log('Confirmed reservation!')
-            resolve('Success')
-          })
-          .catch(error => {
-            console.log(`Attempt to book as ${username} failed`)
-            errors.push(error)
-            attemptBooking(index + 1)
-          })
       }
 
       attemptBooking(0)
