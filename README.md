@@ -4,56 +4,61 @@ Slack app providing slash commands for reserving squash courts.
 
 ## Quickstart
 
-This project is intended to support a Slack app providing custom slash commands. It uses the [Serverless](https://github.com/serverless/serverless) framework to deploy a collection of AWS Lambda functions which constitute the service. For Serverless' AWS provider docs, see [here](https://serverless.com/framework/docs/providers/aws/).
+This project is intended to support a Slack app providing custom [slash commands](https://api.slack.com/slash-commands). It uses [Zappa](https://github.com/Miserlou/Zappa) to deploy a Flask application to [AWS Lambda](https://aws.amazon.com/lambda/) and [Amazon API Gateway](https://aws.amazon.com/api-gateway/).
 
-To get started, create a [Slack app](https://api.slack.com/slack-apps). Then, configure your AWS [credentials](https://serverless.com/framework/docs/providers/aws/cli-reference/config-credentials/) so Serverless can find them. Install dependencies:
+To get started, create a [Slack app](https://api.slack.com/slack-apps). If you haven't already, create a local [AWS credentials file](https://aws.amazon.com/blogs/security/a-new-and-standardized-way-to-manage-credentials-in-the-aws-sdks/).
 
-```sh
-$ npm install
-```
-
-Development dependencies will be automatically excluded when the service is packaged for deployment. Before Serverless will deploy the service, it also needs to be able to find a secrets file named `secrets.dev.yml`. You can create this file yourself, or you can decrypt the included `secrets.dev.yml.encrypted` file:
+Install requirements:
 
 ```sh
-$ npm run decrypt -- <your password here>
+$ make requirements
 ```
 
-See `secrets.dev.yml.example` for an example of what the file should look like. If you create or modify the file, encrypt it with the following command to create a file you can commit:
+Package and deploy the service:
 
 ```sh
-$ npm run encrypt -- <your password here>
+$ make deploy
 ```
 
-Now deploy the service:
+Set environment variables the app needs to function:
+
+```
+MIT_RECREATION_PASSWORDS=your-password,another-password
+MIT_RECREATION_USERNAMES=your-username,another-username
+SLACK_TEAM_ID=your-slack-team-id
+SLACK_VERIFICATION_TOKEN=your-slack-verification-token
+```
+
+Finally, configure slash commands (e.g., `/look` and `/book`) that POST to the `/look` and `/book` endpoints.
+
+For information about additional Make targets:
 
 ```sh
-$ npm run deploy
+$ make help
 ```
-
-Configure slash commands (i.e., `/look` and `/book`) that POST to the deployed `router` endpoint.
-
-## Design
-
-Slack requires that "in channel" slash commands receive a response [within 3 seconds](https://api.slack.com/slash-commands#responding_to_a_command). I designed the courtbot service to meet this requirement in spite of Lambda's multi-second cold start time and the fact that booking can take upwards of 5 seconds.
-
-I use [`serverless-plugin-warmup`](https://github.com/FidelLimited/serverless-plugin-warmup) to create a scheduled Lambda which invokes the `router` function every 5 minutes. The `router` function detects when it's been invoked by `serverless-plugin-warmup` and exits immediately. This protects the `router` function from cold starts and keeps execution time down. All slash commands are configured to POST to this "warm" endpoint. Since there's no cold start to deal with, the `router` can immediately invoke the long-running `look` and `book` functions (asynchronously) and return a response to Slack in under 3 seconds.
 
 ## Development
 
-Use the function-specific `npm` scripts to deploy individual functions during development. This is faster than deploying the entire service. For example, to deploy only the router function:
+`courtbot` is a Flask app. It can be run locally without using Lambda:
 
 ```sh
-$ npm run deploy:router
+$ make serve
 ```
 
-To run ESLint:
+Remember to export the necessary environment variables. If you want to use Slack to test `courtbot` changes running locally, use [ngrok](https://ngrok.com/) to expose the server running on your local machine to the Internet:
 
 ```sh
-$ npm test
+$ ngrok http 5000
 ```
 
-To see all available `npm` scripts:
+Use the public URL of your tunnel to configure development slash commands (e.g., `/dev-look` and `/dev-book`) that POST to the `https://<id>.ngrok.io/look` and `https://<id>.ngrok.io/book` endpoints.
+
+To run the linter ([Flake8](http://flake8.pycqa.org/)):
 
 ```sh
-$ npm run
+$ make lint
 ```
+
+## Design
+
+Slack requires that "in channel" slash commands receive a response [within 3 seconds](https://api.slack.com/slash-commands#responding_to_a_command). `courtbot` uses Zappa's [auto keep-warm](https://github.com/Miserlou/Zappa#keeping-the-server-warm) and [asynchronous task execution](https://github.com/Miserlou/Zappa#asynchronous-task-execution) features to meet this requirement in spite of Lambda's multi-second cold start time and the fact that booking can take upwards of 5 seconds.

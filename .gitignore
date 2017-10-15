@@ -1,8 +1,12 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# pyenv
+.python-version
+
 # macOS
 .DS_Store
-
-# Serverless
-.serverless
-
-node_modules
-secrets.dev.yml

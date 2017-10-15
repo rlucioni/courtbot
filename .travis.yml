@@ -1,21 +1,17 @@
-# .nvmrc is respected.
-# https://docs.travis-ci.com/user/languages/javascript-with-nodejs/#Specifying-Node.js-versions-using-.nvmrc
-language: node_js
+language: python
+python:
+  - '3.6'
 
-cache:
-  directories:
-    - "node_modules"
+cache: pip
 
 # Perform a shallow clone for speed. The default depth is 50.
 # https://docs.travis-ci.com/user/customizing-the-build#Git-Clone-Depth
 git:
   depth: 3
 
-before_install:
-  - npm install -g npm@latest
-  - npm -v
+script: make lint
 
-# TODO: Use serverless to deploy to AWS.
+# TODO: Use Zappa to deploy to AWS.
 # https://docs.travis-ci.com/user/deployment/script
 # deploy:
 #   on:
