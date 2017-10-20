@@ -4,7 +4,7 @@ Slack app providing slash commands for reserving squash courts.
 
 ## Quickstart
 
-This project is intended to support a Slack app providing custom [slash commands](https://api.slack.com/slash-commands). It uses [Zappa](https://github.com/Miserlou/Zappa) to deploy a Flask application to [AWS Lambda](https://aws.amazon.com/lambda/) and [Amazon API Gateway](https://aws.amazon.com/api-gateway/).
+This project is intended to support a Slack app providing custom [slash commands](https://api.slack.com/slash-commands). It uses [Zappa](https://github.com/Miserlou/Zappa) to deploy a [Flask](http://flask.pocoo.org/) application to [AWS Lambda](https://aws.amazon.com/lambda/) and [Amazon API Gateway](https://aws.amazon.com/api-gateway/).
 
 To get started, create a [Slack app](https://api.slack.com/slack-apps). If you haven't already, create a local [AWS credentials file](https://aws.amazon.com/blogs/security/a-new-and-standardized-way-to-manage-credentials-in-the-aws-sdks/).
 
@@ -48,7 +48,7 @@ $ make serve
 Remember to export the necessary environment variables. If you want to use Slack to test `courtbot` changes running locally, use [ngrok](https://ngrok.com/) to expose the server running on your local machine to the Internet:
 
 ```sh
-$ ngrok http 5000
+$ make tunnel
 ```
 
 Use the public URL of your tunnel to configure development slash commands (e.g., `/dev-look` and `/dev-book`) that POST to the `https://<id>.ngrok.io/look` and `https://<id>.ngrok.io/book` endpoints.
