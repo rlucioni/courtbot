@@ -3,4 +3,5 @@ flake8==3.4.1
 flask==0.12.2
 pytz==2017.2
 requests==2.18.4
+slackclient==1.1.2
 zappa==0.44.3

@@ -7,6 +7,13 @@
         // "callbacks": {
         //     "post": "courtbot.post_callback",
         // },
+        "events": [{
+            "function": "courtbot.scheduled_book",
+            // Book courts for Tuesdays and Thursdays, a day in advance
+            // 5:05 UTC = 12:05 AM EST (UTC -5) = 1:05 AM EDT (UTC -4)
+            // https://docs.aws.amazon.com/lambda/latest/dg/tutorial-scheduled-events-schedule-expressions.html
+            "expression": "cron(5 5 ? * MON, WED *)"
+        }],
         "exclude": [
             ".flake8",
             ".git/*",
@@ -26,6 +33,6 @@
         "project_name": "courtbot",
         "runtime": "python3.6",
         "s3_bucket": "courtbot",
-        "timeout_seconds": 30,
+        "timeout_seconds": 60,
     }
 }

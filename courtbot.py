@@ -10,6 +10,7 @@ import requests
 from bs4 import BeautifulSoup
 from flask import abort, Flask, jsonify, request
 from pytz import timezone
+from slackclient import SlackClient
 from zappa.async import task
 
 
@@ -44,6 +45,7 @@ dictConfig({
 })
 
 logger = logging.getLogger(__name__)
+slack = SlackClient(os.environ['SLACK_API_TOKEN'])
 app = Flask(__name__)
 
 
@@ -131,7 +133,7 @@ class Scheduler:
             )
         })
 
-    def look(self):
+    def look(self, conversational=True):
         """
         Retrieve court availability data.
 
@@ -155,15 +157,18 @@ class Scheduler:
         raw = response.json()['d']['Value']
         courts = to_hours(raw, self.is_tomorrow)
 
-        if courts:
-            message = [f"Here's how the courts look{self.tomorrow}."]
+        if conversational:
+            if courts:
+                message = [f"Here's how the courts look{self.tomorrow}."]
 
-            for court_number, hours in courts.items():
-                message.append(f'*#{court_number}* is available at {hours}.')
+                for court_number, hours in courts.items():
+                    message.append(f'*#{court_number}* is available at {hours}.')
 
-            return '\n\n'.join(message)
+                return '\n\n'.join(message)
+            else:
+                return f'There are no courts available{self.tomorrow}.'
         else:
-            return f'There are no courts available{self.tomorrow}.'
+            return courts
 
     def book(self):
         pattern = r'#(?P<court_number>[1-5]).*(@|at) (?P<twelve_hour_time>[1-9]|1[012])\s*(?P<period>am|pm)'
@@ -195,7 +200,7 @@ class Scheduler:
                     continue
 
                 if success:
-                    return f"All set! I've booked #{court_number} at {twelve_hour_time} {period}{self.tomorrow}."
+                    return f"I've booked #{court_number} at {twelve_hour_time} {period}{self.tomorrow}."
             else:
                 raise Exception('Credentials exhausted, unable to book')
         else:
@@ -389,3 +394,50 @@ def book():
         response_type='in_channel',
         text='Booking...',
     )
+
+
+def scheduled_book():
+    logger.info('Running scheduled book task')
+    hours = [7, 8, 9]
+    options = {hour: [] for hour in hours}
+
+    try:
+        slack.api_call(
+            'chat.postMessage',
+            channel='#general',
+            text='Looking...'
+        )
+        courts = Scheduler('tomorrow').look(conversational=False)
+
+        for court_number, court_hours in courts.items():
+            for hour in hours:
+                if f'{hour} PM' in court_hours:
+                    options[hour].append(court_number)
+
+        court = None
+        for hour in hours:
+            if options[hour]:
+                # only move to another court if the one booked earlier isn't available
+                if court not in options[hour]:
+                    court = options[hour][0]
+
+                message = Scheduler(f'#{court} at {hour} PM tomorrow').book()
+
+                slack.api_call(
+                    'chat.postMessage',
+                    channel='#general',
+                    text=message
+                )
+            else:
+                slack.api_call(
+                    'chat.postMessage',
+                    channel='#general',
+                    text=f'No courts available at {hour} PM tomorrow.'
+                )
+    except:
+        logger.exception('Scheduled booking failed')
+        slack.api_call(
+            'chat.postMessage',
+            channel='#general',
+            text='Something went wrong. Sorry!'
+        )
