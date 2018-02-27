@@ -14,6 +14,10 @@ from slackclient import SlackClient
 from zappa.async import task
 
 
+MIT_RECREATION_USERNAMES = os.environ['MIT_RECREATION_USERNAMES'].split(',')
+MIT_RECREATION_PASSWORDS = os.environ['MIT_RECREATION_PASSWORDS'].split(',')
+SLACK_API_TOKEN = os.environ['SLACK_API_TOKEN']
+
 dictConfig({
     'version': 1,
     'disable_existing_loggers': False,
@@ -45,8 +49,16 @@ dictConfig({
 })
 
 logger = logging.getLogger(__name__)
-slack = SlackClient(os.environ['SLACK_API_TOKEN'])
+slack = SlackClient(SLACK_API_TOKEN)
 app = Flask(__name__)
+
+
+def post_message(message, channel='#general'):
+    slack.api_call(
+        'chat.postMessage',
+        channel=channel,
+        text=message
+    )
 
 
 def is_request_valid(request):
@@ -119,9 +131,7 @@ class Scheduler:
         self.is_tomorrow = 'tomorrow' in self.request_text
         self.tomorrow = ' tomorrow' if self.is_tomorrow else ''
 
-        mit_recreation_usernames = os.environ['MIT_RECREATION_USERNAMES'].split(',')
-        mit_recreation_passwords = os.environ['MIT_RECREATION_PASSWORDS'].split(',')
-        self.credentials = zip(mit_recreation_usernames, mit_recreation_passwords)
+        self.credentials = zip(MIT_RECREATION_USERNAMES, MIT_RECREATION_PASSWORDS)
 
         self.base_url = 'https://east-a-60ols.csi-cloudapp.net'
 
@@ -200,7 +210,7 @@ class Scheduler:
                     continue
 
                 if success:
-                    return f"I've booked #{court_number} at {twelve_hour_time} {period}{self.tomorrow}."
+                    return f'Booked #{court_number} at {twelve_hour_time} {period}{self.tomorrow}.'
             else:
                 raise Exception('Credentials exhausted, unable to book')
         else:
@@ -397,16 +407,12 @@ def book():
 
 
 def scheduled_book():
-    logger.info('Running scheduled book task')
+    logger.info('Running scheduled booking')
     hours = [7, 8, 9]
     options = {hour: [] for hour in hours}
 
     try:
-        slack.api_call(
-            'chat.postMessage',
-            channel='#general',
-            text='Looking...'
-        )
+        post_message('Looking...')
         courts = Scheduler('tomorrow').look(conversational=False)
 
         for court_number, court_hours in courts.items():
@@ -414,30 +420,42 @@ def scheduled_book():
                 if f'{hour} PM' in court_hours:
                     options[hour].append(court_number)
 
-        court = None
-        for hour in hours:
-            if options[hour]:
-                # only move to another court if the one booked earlier isn't available
-                if court not in options[hour]:
-                    court = options[hour][0]
+        selected = {hour: [] for hour in hours}
+        for hour, court_numbers in options.items():
+            behind = selected.get(hour - 1, [])
+            ahead = options.get(hour + 1, [])
 
-                message = Scheduler(f'#{court} at {hour} PM tomorrow').book()
+            # If there are selected courts behind, prefer them. If there are
+            # no courts behind, prefer any ahead that can be shared.
+            preferred = {*(behind or ahead)} & {*court_numbers}
 
-                slack.api_call(
-                    'chat.postMessage',
-                    channel='#general',
-                    text=message
-                )
+            choices = list(preferred) + list({*court_numbers} - preferred)
+            selected[hour] = choices[:2]
+
+        booked = {hour: 0 for hour in hours}
+        limit = len(MIT_RECREATION_USERNAMES)
+        for hour, court_numbers in selected.items():
+            # Stop if we've made it to 9 with bookings at 7. We can only make it
+            # to 9 if we booked something at 8. We don't want 9 if we already
+            # have 7 and 8 booked.
+            if hour == 9 and booked[7] > 0:
+                logger.info('Made it to 9 PM with bookings at 7 PM, stopping')
+                return
+
+            if court_numbers:
+                for court_number in court_numbers:
+                    if sum(booked.values()) < limit:
+                        message = Scheduler(f'#{court_number} at {hour} PM tomorrow').book()
+                        post_message(message)
+                        booked[hour] += 1
             else:
-                slack.api_call(
-                    'chat.postMessage',
-                    channel='#general',
-                    text=f'No courts available at {hour} PM tomorrow.'
-                )
+                post_message(f'No courts available at {hour} PM tomorrow.')
+
+                # Stop if there's nothing available at 8. We don't want a gap
+                # between 7 and 9, nor only 9.
+                if hour == 8:
+                    logger.info('Nothing available at 8 PM, stopping')
+                    return
     except:
         logger.exception('Scheduled booking failed')
-        slack.api_call(
-            'chat.postMessage',
-            channel='#general',
-            text='Something went wrong. Sorry!'
-        )
+        post_message('Something went wrong. Sorry!')
