@@ -27,6 +27,7 @@ MIT_RECREATION_PASSWORDS=your-password,another-password
 MIT_RECREATION_USERNAMES=your-username,another-username
 SLACK_API_TOKEN=your-slack-api-token
 SLACK_TEAM_ID=your-slack-team-id
+SLACK_VALID_CHANNELS=some-channel-id,another-channel-id
 SLACK_VERIFICATION_TOKEN=your-slack-verification-token
 ```
 
