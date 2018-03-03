@@ -17,6 +17,7 @@ from zappa.async import task
 MIT_RECREATION_USERNAMES = os.environ['MIT_RECREATION_USERNAMES'].split(',')
 MIT_RECREATION_PASSWORDS = os.environ['MIT_RECREATION_PASSWORDS'].split(',')
 SLACK_API_TOKEN = os.environ['SLACK_API_TOKEN']
+SLACK_VALID_CHANNELS = os.environ['SLACK_VALID_CHANNELS'].split(',')
 
 dictConfig({
     'version': 1,
@@ -385,13 +386,13 @@ def book():
     if not is_request_valid(request):
         abort(400)
 
-    channel_name = request.form['channel_name']
-    if channel_name not in ['general', 'sandbox']:
-        logger.info(f'rejected book request from #{channel_name}')
+    channel = request.form['channel_id']
+    if channel not in SLACK_VALID_CHANNELS:
+        logger.info(f'rejected book request from #{channel}')
 
         return jsonify(
             response_type='in_channel',
-            text='I can only book courts in #general',
+            text=f'I can only book courts in <#{SLACK_VALID_CHANNELS[0]}|general>',
         )
 
     request_text = request.form['text']
