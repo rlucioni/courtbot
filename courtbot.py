@@ -385,6 +385,15 @@ def book():
     if not is_request_valid(request):
         abort(400)
 
+    channel_name = request.form['channel_name']
+    if channel_name not in ['general', 'sandbox']:
+        logger.info(f'rejected book request from #{channel_name}')
+
+        return jsonify(
+            response_type='in_channel',
+            text='I can only book courts in #general',
+        )
+
     request_text = request.form['text']
     if 'help' in request_text:
         response_text = (
