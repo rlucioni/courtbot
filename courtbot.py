@@ -388,7 +388,7 @@ def book():
 
     channel = request.form['channel_id']
     if channel not in SLACK_VALID_CHANNELS:
-        logger.info(f'rejected book request from #{channel}')
+        logger.info(f'rejected book request from channel {channel}')
 
         return jsonify(
             response_type='in_channel',
