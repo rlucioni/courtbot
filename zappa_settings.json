@@ -16,8 +16,8 @@
             "expression": "cron(5 10 ? * MON,WED *)"
         }],
         "exclude": [
+            "__pycache__",
             ".flake8",
-            ".git/*",
             ".gitignore",
             ".python-version",
             ".travis.yml",
