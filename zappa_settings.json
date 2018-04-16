@@ -34,6 +34,6 @@
         "project_name": "courtbot",
         "runtime": "python3.6",
         "s3_bucket": "courtbot",
-        "timeout_seconds": 60,
+        "timeout_seconds": 120,
     }
 }
