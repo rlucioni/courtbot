@@ -15,6 +15,7 @@
             // https://docs.aws.amazon.com/lambda/latest/dg/tutorial-scheduled-events-schedule-expressions.html
             "expression": "cron(5 10 ? * MON,WED *)"
         }],
+        "exception_handler": "courtbot.exception_handler",
         "exclude": [
             "__pycache__",
             ".flake8",

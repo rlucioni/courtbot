@@ -469,3 +469,8 @@ def scheduled_book():
     except:
         logger.exception('Scheduled booking failed')
         post_message('Something went wrong. Sorry!')
+
+
+def exception_handler(*args, **kwargs):
+    # prevent invocation retry
+    return True
