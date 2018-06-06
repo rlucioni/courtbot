@@ -2,7 +2,7 @@ import json
 import logging
 import os
 import re
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from functools import partial
 from hashlib import md5
 from logging.config import dictConfig
@@ -16,8 +16,10 @@ from slackclient import SlackClient
 from zappa.async import task
 
 
-MIT_RECREATION_USERNAMES = os.environ['MIT_RECREATION_USERNAMES'].split(',')
+EMBARGO_END = os.environ.get('EMBARGO_END')
+EMBARGO_START = os.environ.get('EMBARGO_START')
 MIT_RECREATION_PASSWORDS = os.environ['MIT_RECREATION_PASSWORDS'].split(',')
+MIT_RECREATION_USERNAMES = os.environ['MIT_RECREATION_USERNAMES'].split(',')
 REDIS_EXPIRE_SECONDS = int(os.environ.get('REDIS_EXPIRE_SECONDS', 3600))
 REDIS_HOST = os.environ.get('REDIS_HOST', 'localhost')
 REDIS_KEY_VERSION = str(os.environ.get('REDIS_KEY_VERSION', 1))
@@ -131,6 +133,23 @@ def to_hours(raw, is_tomorrow):
             courts[court['Id'] - 16] = ', '.join(formatted)
 
     return courts
+
+
+def iso_to_date(isoformat):
+    parts = isoformat.split('-')
+    parts = [int(part) for part in parts]
+    return date(*parts)
+
+
+def is_embargo():
+    if EMBARGO_START or EMBARGO_END:
+        embargo_start = iso_to_date(EMBARGO_START)
+        embargo_end = iso_to_date(EMBARGO_END)
+
+        if embargo_start <= date.today() <= embargo_end:
+            return True
+
+    return False
 
 
 def make_key(*args):
@@ -393,6 +412,12 @@ def look():
             text=response_text,
         )
 
+    if is_embargo():
+        return jsonify(
+            response_type='in_channel',
+            text=f'Courts are closed {EMBARGO_START} through {EMBARGO_END}.',
+        )
+
     # Slack requires slash commands to respond in less than 3 seconds. Interactions
     # with the booking site can be long-running, so we perform them asynchronously.
     # This function call should return immediately.
@@ -431,6 +456,12 @@ def book():
             text=response_text,
         )
 
+    if is_embargo():
+        return jsonify(
+            response_type='in_channel',
+            text=f'Unable to book. Courts are closed {EMBARGO_START} through {EMBARGO_END}.',
+        )
+
     book_task(request_text, request.form['response_url'])
 
     return jsonify(
@@ -440,6 +471,10 @@ def book():
 
 
 def scheduled_book():
+    if is_embargo():
+        post_message(f'Skipping scheduled booking. Courts are closed {EMBARGO_START} through {EMBARGO_END}.')
+        return
+
     logger.info('Running scheduled booking')
     hours = [7, 8, 9]
     options = {hour: [] for hour in hours}
