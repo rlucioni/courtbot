@@ -2,18 +2,13 @@
     "prod": {
         "app_function": "courtbot.app",
         "aws_region": "us-east-1",
-        // TODO: Use this to prune old Lambda versions.
-        // https://github.com/Miserlou/Zappa/issues/254
-        // "callbacks": {
-        //     "post": "courtbot.post_callback",
-        // },
         "events": [{
             "function": "courtbot.scheduled_book",
-            // Book courts for Tuesdays and Thursdays, a day in advance
+            // Book courts a day in advance
             // 10:05 UTC = 6:05 AM EDT (UTC -4)
             // 11:05 UTC = 6:05 AM EST (UTC -5)
             // https://docs.aws.amazon.com/lambda/latest/dg/tutorial-scheduled-events-schedule-expressions.html
-            "expression": "cron(5 10 ? * MON,WED *)"
+            "expression": "cron(5 10 ? * SUN,MON,WED *)"
         }],
         "exception_handler": "courtbot.exception_handler",
         "exclude": [
