@@ -4,18 +4,25 @@ import os
 import re
 from datetime import datetime, timedelta
 from functools import partial
+from hashlib import md5
 from logging.config import dictConfig
 
 import requests
 from bs4 import BeautifulSoup
 from flask import abort, Flask, jsonify, request
 from pytz import timezone
+from redis import StrictRedis
 from slackclient import SlackClient
 from zappa.async import task
 
 
 MIT_RECREATION_USERNAMES = os.environ['MIT_RECREATION_USERNAMES'].split(',')
 MIT_RECREATION_PASSWORDS = os.environ['MIT_RECREATION_PASSWORDS'].split(',')
+REDIS_EXPIRE_SECONDS = int(os.environ.get('REDIS_EXPIRE_SECONDS', 3600))
+REDIS_HOST = os.environ.get('REDIS_HOST', 'localhost')
+REDIS_KEY_VERSION = str(os.environ.get('REDIS_KEY_VERSION', 1))
+REDIS_PASSWORD = os.environ.get('REDIS_PASSWORD', '')
+REDIS_PORT = int(os.environ.get('REDIS_PORT', 6379))
 SLACK_API_TOKEN = os.environ['SLACK_API_TOKEN']
 SLACK_VALID_CHANNELS = os.environ['SLACK_VALID_CHANNELS'].split(',')
 
@@ -126,6 +133,11 @@ def to_hours(raw, is_tomorrow):
     return courts
 
 
+def make_key(*args):
+    key = '-'.join([REDIS_KEY_VERSION] + [str(arg) for arg in args])
+    return md5(key.encode('utf-8')).hexdigest()
+
+
 class Scheduler:
     def __init__(self, request_text):
         self.request_text = request_text
@@ -143,6 +155,8 @@ class Scheduler:
                 'Chrome/60.0.3112.90 Safari/537.36'
             )
         })
+
+        self.redis = StrictRedis(host=REDIS_HOST, port=REDIS_PORT, password=REDIS_PASSWORD)
 
     def look(self, conversational=True):
         """
@@ -195,6 +209,13 @@ class Scheduler:
             hour = to_24(f'{twelve_hour_time} {period}')
 
             for username, password in self.credentials:
+                cache_key = make_key(username, self.is_tomorrow)
+                is_cached = bool(self.redis.get(cache_key))
+
+                if is_cached:
+                    logger.info(f'username {username} in cache, skipping')
+                    continue
+
                 pipeline = [
                     partial(self.login, username, password),
                     partial(self.stage, court_number, hour),
@@ -211,6 +232,8 @@ class Scheduler:
                     continue
 
                 if success:
+                    self.redis.set(cache_key, 1, ex=REDIS_EXPIRE_SECONDS)
+
                     return f'Booked #{court_number} at {twelve_hour_time} {period}{self.tomorrow}.'
             else:
                 raise Exception('Credentials exhausted, unable to book')
