@@ -8,7 +8,7 @@
             // 10:05 UTC = 6:05 AM EDT (UTC -4)
             // 11:05 UTC = 6:05 AM EST (UTC -5)
             // https://docs.aws.amazon.com/lambda/latest/dg/tutorial-scheduled-events-schedule-expressions.html
-            "expression": "cron(5 11 ? * SUN,MON,WED *)"
+            "expression": "cron(5 10 ? * SUN,MON,WED *)"
         }],
         "exception_handler": "courtbot.exception_handler",
         "exclude": [
