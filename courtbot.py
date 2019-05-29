@@ -165,7 +165,8 @@ class Scheduler:
 
         self.credentials = zip(MIT_RECREATION_USERNAMES, MIT_RECREATION_PASSWORDS)
 
-        self.base_url = 'https://east-a-60ols.csi-cloudapp.net'
+        # self.base_url = 'https://east-a-60ols.csi-cloudapp.net'
+        self.base_url = 'https://hnd-p-ols.spectrumng.net'
 
         self.session = requests.Session()
         self.session.headers.update({
