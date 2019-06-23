@@ -254,7 +254,7 @@ class Scheduler:
                 if success:
                     self.redis.set(cache_key, 1, ex=REDIS_EXPIRE_SECONDS)
 
-                    return f'Booked #{court_number} at {twelve_hour_time} {period}{self.tomorrow}.'
+                    return f'Booked #{court_number} at {twelve_hour_time} {period}{self.tomorrow} (as {username})'
             else:
                 raise Exception('Credentials exhausted, unable to book')
         else:
