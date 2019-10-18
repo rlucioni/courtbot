@@ -477,7 +477,7 @@ def scheduled_book():
         return
 
     logger.info('Running scheduled booking')
-    hours = [7, 8, 9]
+    hours = [7, 8]
     options = {hour: [] for hour in hours}
 
     try:
@@ -489,42 +489,22 @@ def scheduled_book():
                 if f'{hour} PM' in court_hours:
                     options[hour].append(court_number)
 
-        selected = {hour: [] for hour in hours}
+        booking_limit = len(MIT_RECREATION_USERNAMES)
+        booking_total = 0
+
         for hour, court_numbers in options.items():
-            behind = selected.get(hour - 1, [])
-            ahead = options.get(hour + 1, [])
-
-            # If there are selected courts behind, prefer them. If there are
-            # no courts behind, prefer any ahead that can be shared.
-            preferred = {*(behind or ahead)} & {*court_numbers}
-
-            choices = list(preferred) + list({*court_numbers} - preferred)
-            selected[hour] = choices[:2]
-
-        booked = {hour: 0 for hour in hours}
-        limit = len(MIT_RECREATION_USERNAMES)
-        for hour, court_numbers in selected.items():
-            # Stop if we've made it to 9 with bookings at 7. We can only make it
-            # to 9 if we booked something at 8. We don't want 9 if we already
-            # have 7 and 8 booked.
-            if hour == 9 and booked[7] > 0:
-                logger.info('Made it to 9 PM with bookings at 7 PM, stopping')
-                return
+            bookings_for_hour = 0
 
             if court_numbers:
                 for court_number in court_numbers:
-                    if sum(booked.values()) < limit:
+                    if bookings_for_hour < 2 and booking_total < booking_limit:
                         message = Scheduler(f'#{court_number} at {hour} PM tomorrow').book()
                         post_message(message)
-                        booked[hour] += 1
+
+                        bookings_for_hour += 1
+                        booking_total += 1
             else:
                 post_message(f'No courts available at {hour} PM tomorrow.')
-
-                # Stop if there's nothing available at 8. We don't want a gap
-                # between 7 and 9, nor only 9.
-                if hour == 8:
-                    logger.info('Nothing available at 8 PM, stopping')
-                    return
     except:
         logger.exception('Scheduled booking failed')
         post_message('Something went wrong. Sorry!')
